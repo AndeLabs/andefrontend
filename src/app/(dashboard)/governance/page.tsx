@@ -12,7 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Lightbulb, UserCheck, UserX } from 'lucide-react';
+import { FileText, Lightbulb, UserCheck, UserX, Vote } from 'lucide-react';
 
 const proposals = [
   {
@@ -46,47 +46,58 @@ const proposals = [
 
 export default function GovernancePage() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold">Governance</h1>
-            <Button size="lg">
-                <Lightbulb className="mr-2" />
-                Create Proposal
-            </Button>
-        </div>
-        
-        <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Governance</h1>
+            <p className="text-muted-foreground">Participate in the future of AndeChain.</p>
+          </div>
+          <Button size="lg">
+              <Lightbulb className="mr-2" />
+              Create Proposal
+          </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
             <h2 className="text-xl font-semibold">Active Proposals</h2>
             {proposals.filter(p => p.status === 'Active').map(proposal => (
                 <Card key={proposal.id}>
                     <CardHeader>
                         <div className="flex justify-between items-start">
                             <div>
-                                <CardTitle className="text-lg">{proposal.id}: {proposal.title}</CardTitle>
-                                <CardDescription className="mt-1">{proposal.description}</CardDescription>
+                                <Badge variant="secondary" className="mb-2">
+                                  {proposal.id}
+                                </Badge>
+                                <CardTitle className="text-lg">{proposal.title}</CardTitle>
+                                <CardDescription className="mt-2 text-sm">{proposal.description}</CardDescription>
                             </div>
                             <Badge variant={proposal.status === 'Active' ? 'default' : 'secondary'}
-                                   className={proposal.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : ''}>
+                                   className={proposal.status === 'Active' ? 'bg-green-600/10 text-green-400 border-green-400/20' : ''}>
                                 {proposal.status}
                             </Badge>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             <div>
-                                <div className="flex justify-between text-sm font-medium mb-1">
-                                    <span>For ({proposal.votesFor}%)</span>
-                                    <span>Against ({proposal.votesAgainst}%)</span>
+                                <div className="flex justify-between text-sm font-medium mb-2">
+                                    <span className="flex items-center gap-2 text-green-500"><UserCheck size={16} /> For</span>
+                                    <span className="flex items-center gap-2 text-red-500">Against <UserX size={16} /></span>
                                 </div>
-                                <Progress value={proposal.votesFor} />
+                                <Progress value={proposal.votesFor} className="h-2"/>
+                                <div className="flex justify-between text-xs font-bold mt-1">
+                                    <span>{proposal.votesFor}%</span>
+                                    <span>{proposal.votesAgainst}%</span>
+                                </div>
                             </div>
                             <Separator />
                             <div className="flex justify-between items-center">
                                 <p className="text-xs text-muted-foreground">Voting ends {proposal.endDate}</p>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" size="sm"><UserCheck className="mr-2" /> Vote For</Button>
-                                    <Button variant="destructive" size="sm"><UserX className="mr-2" /> Vote Against</Button>
+                                    <Button variant="outline" size="sm">Vote For</Button>
+                                    <Button variant="destructive" size="sm">Vote Against</Button>
                                 </div>
                             </div>
                         </div>
@@ -94,31 +105,21 @@ export default function GovernancePage() {
                 </Card>
             ))}
         </div>
-      </div>
-      <div className="space-y-6">
-        <Card>
-            <CardHeader>
-                <CardTitle>My Voting Power</CardTitle>
-                <CardDescription>Based on your staked AND and governance participation.</CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-                <p className="text-4xl font-bold">12,500.75</p>
-                <p className="text-muted-foreground">votes</p>
-                <Button variant="secondary" className="w-full mt-4">Delegate Votes</Button>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle>How Governance Works</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>1. Any user with over 1,000 voting power can create a proposal.</p>
-                <p>2. Proposals are voted on by the community for a 14-day period.</p>
-                <p>3. A proposal passes if it reaches a quorum of 20% participation and over 50% 'For' votes.</p>
-                <Button variant="link" className="p-0 h-auto">Read Full Documentation</Button>
-            </CardContent>
-        </Card>
-        <Card>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <Card className="text-center">
+              <CardHeader>
+                  <CardTitle>My Voting Power</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <Vote className="w-12 h-12 mx-auto text-primary mb-2"/>
+                  <p className="text-4xl font-bold">12,500.75</p>
+                  <p className="text-muted-foreground text-sm">votes</p>
+                  <Button variant="secondary" className="w-full mt-4">Delegate Votes</Button>
+              </CardContent>
+          </Card>
+           <Card>
             <CardHeader>
                 <CardTitle>Passed Proposals</CardTitle>
             </CardHeader>
@@ -126,14 +127,17 @@ export default function GovernancePage() {
                 <ul className="space-y-3">
                     {proposals.filter(p => p.status === 'Passed').map(p => (
                         <li key={p.id} className="flex items-center gap-3 text-sm">
-                            <FileText className="w-4 h-4 text-muted-foreground"/>
-                            <span className="font-medium">{p.id}:</span>
-                            <span className="text-muted-foreground truncate">{p.title}</span>
+                            <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
+                            <div>
+                              <span className="font-medium">{p.id}:</span>
+                              <span className="text-muted-foreground ml-1">{p.title}</span>
+                            </div>
                         </li>
                     ))}
                 </ul>
             </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
     </div>
   );
