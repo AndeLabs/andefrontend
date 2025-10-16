@@ -10,13 +10,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { Info, Zap, Gift } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useStaking, tiers, lockPeriods } from '@/hooks/use-staking';
+import { useStaking, tiers, lockPeriods } from '@/hooks/use-staking.tsx';
 
 export default function StakingPage() {
   const {
