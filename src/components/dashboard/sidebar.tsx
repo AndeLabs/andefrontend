@@ -23,7 +23,7 @@ import { Separator } from "../ui/separator";
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/transactions", icon: ArrowLeftRight, label: "Transactions" },
-  { href: "#", icon: Landmark, label: "Staking" },
+  { href: "/staking", icon: Landmark, label: "Staking" },
   { href: "#", icon: Wallet, label: "Wallets" },
   { href: "#", icon: Settings, label: "Settings" },
 ];
@@ -45,7 +45,9 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
                 asChild
-                isActive={item.href === "/dashboard"}
+                // This is a temporary way to show the active link.
+                // We'll need a better solution with usePathname.
+                isActive={typeof window !== 'undefined' && window.location.pathname.startsWith(item.href) && item.href !== '#'}
                 tooltip={item.label}
               >
                 <Link href={item.href}>
@@ -70,3 +72,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
