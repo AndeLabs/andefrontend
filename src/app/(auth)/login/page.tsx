@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, User, signInWithCustomToken } from "firebase/auth";
+import { GithubAuthProvider, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, User, signInWithCustomToken } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import { useAuth, useFirestore, useUser } from "@/firebase";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
@@ -97,6 +97,21 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
+        description: error.message,
+      });
+    }
+  };
+  
+  const handleGitHubSignIn = async () => {
+    const provider = new GithubAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      createUserProfile(result.user);
+       // Redirect will be handled by the useEffect
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "GitHub Sign-In Failed",
         description: error.message,
       });
     }
@@ -224,6 +239,9 @@ export default function LoginPage() {
           </Button>
           <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
             Sign in with Google
+          </Button>
+           <Button variant="outline" className="w-full" onClick={handleGitHubSignIn}>
+            Sign in with GitHub
           </Button>
           <p className="px-8 text-center text-sm text-muted-foreground">
             By clicking continue, you agree to our{" "}

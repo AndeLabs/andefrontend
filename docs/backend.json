@@ -134,7 +134,8 @@
     "providers": [
       "password",
       "google.com",
-      "siwe"
+      "siwe",
+      "github.com"
     ]
   },
   "firestore": {
