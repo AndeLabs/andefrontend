@@ -1,13 +1,23 @@
 
 'use client';
 
+import dynamic from 'next/dynamic';
 import { DollarSign, Landmark, Wallet } from "lucide-react";
 import { BalanceCard } from "@/components/dashboard/balance-card";
-import { OverviewChart } from "@/components/dashboard/overview-chart";
 import { NetworkStatus } from "@/components/dashboard/network-status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from '@/components/ui/skeleton';
+
+const OverviewChart = dynamic(() => 
+  import('@/components/dashboard/overview-chart').then(mod => mod.OverviewChart),
+  { 
+    ssr: false,
+    loading: () => <Skeleton className="h-[350px] w-full" />,
+  }
+);
+
 
 const portfolioData = [
     { asset: 'AndeChain (AND)', balance: '1,250.50', value: '$2,876.15', allocation: '45%' },

@@ -1,13 +1,14 @@
 
 "use client";
 
+import { memo } from 'react';
 import { useAccount, useBlockNumber } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { andechanTestnet } from "@/lib/chains";
 import { Separator } from "../ui/separator";
 
-export function NetworkStatus() {
+function NetworkStatusComponent() {
   const { isConnected, chain } = useAccount();
   const { data: blockNumber, isLoading: isBlockLoading } = useBlockNumber({ watch: true });
   
@@ -74,3 +75,5 @@ export function NetworkStatus() {
     </Card>
   );
 }
+
+export const NetworkStatus = memo(NetworkStatusComponent);

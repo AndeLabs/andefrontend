@@ -1,4 +1,6 @@
 
+'use client';
+import { memo } from 'react';
 import {
   Card,
   CardContent,
@@ -17,7 +19,7 @@ interface BalanceCardProps {
   isLoading?: boolean;
 }
 
-export function BalanceCard({ title, balance, usdValue, change, icon, isLoading }: BalanceCardProps) {
+function BalanceCardComponent({ title, balance, usdValue, change, icon, isLoading }: BalanceCardProps) {
   const isPositive = change && !change.startsWith('-');
 
   return (
@@ -54,3 +56,5 @@ export function BalanceCard({ title, balance, usdValue, change, icon, isLoading 
     </Card>
   );
 }
+
+export const BalanceCard = memo(BalanceCardComponent);
