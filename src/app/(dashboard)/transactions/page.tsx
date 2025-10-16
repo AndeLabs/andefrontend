@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, PlusCircle } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, PlusCircle, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,13 +65,28 @@ export default function TransactionsPage() {
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '...';
-    // Firebase server timestamp can be null before it's set
-    // Or it might be a Date object if just created on client
-    if (timestamp.toDate) {
-      return timestamp.toDate().toLocaleDateString();
+    if (timestamp?.toDate) {
+      return timestamp.toDate().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
     }
     return new Date(timestamp).toLocaleDateString();
   }
+
+  const getStatusBadge = (status: Transaction['status']) => {
+    switch (status) {
+      case 'Completed':
+        return <Badge variant="secondary" className="bg-green-100/10 text-green-400 border-green-400/20"><CheckCircle className="mr-1 h-3 w-3" />{status}</Badge>;
+      case 'Pending':
+        return <Badge variant="secondary" className="bg-yellow-100/10 text-yellow-400 border-yellow-400/20"><Clock className="mr-1 h-3 w-3" />{status}</Badge>;
+      case 'Failed':
+        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />{status}</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
 
   return (
     <Card>
@@ -104,26 +119,26 @@ export default function TransactionsPage() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={6}>
-                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-8 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             )}
-            {!isLoading && transactions && transactions.length > 0 && transactions.sort((a,b) => b.timestamp - a.timestamp).map((tx) => (
+            {!isLoading && transactions && transactions.length > 0 && [...transactions].sort((a,b) => (b.timestamp?.seconds ?? 0) - (a.timestamp?.seconds ?? 0)).map((tx) => (
               <TableRow key={tx.id}>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {tx.type === "Send" ? (
-                      <span className="p-1.5 bg-muted rounded-full">
-                        <ArrowUpRight className="h-4 w-4 text-red-500" />
+                      <span className="p-1.5 bg-red-500/10 rounded-full">
+                        <ArrowUpRight className="h-4 w-4 text-red-400" />
                       </span>
                     ) : tx.type === "Receive" ? (
-                      <span className="p-1.5 bg-muted rounded-full">
-                        <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                      <span className="p-1.5 bg-green-500/10 rounded-full">
+                        <ArrowDownLeft className="h-4 w-4 text-green-400" />
                       </span>
                     ) : (
-                       <span className="p-1.5 bg-muted rounded-full">
-                        <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                       <span className="p-1.5 bg-blue-500/10 rounded-full">
+                        <ArrowUpRight className="h-4 w-4 text-blue-400" />
                       </span>
                     )}
                     <span className="font-medium">{tx.type}</span>
@@ -137,24 +152,7 @@ export default function TransactionsPage() {
                   {tx.to}
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant={
-                      tx.status === "Completed"
-                        ? "default"
-                        : tx.status === "Pending"
-                        ? "secondary"
-                        : "destructive"
-                    }
-                    className={
-                      tx.status === "Completed"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300"
-                        : tx.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300"
-                        : ""
-                    }
-                  >
-                    {tx.status}
-                  </Badge>
+                  {getStatusBadge(tx.status)}
                 </TableCell>
                 <TableCell className="text-right">{formatDate(tx.timestamp)}</TableCell>
               </TableRow>
