@@ -6,6 +6,7 @@ import { useAccount, useDisconnect } from "wagmi";
 import { signOut } from "firebase/auth";
 import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
+import { isWeb3ModalInitialized } from "@/lib/web3-provider";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,10 +27,8 @@ interface UserProfile {
   avatar?: string;
 }
 
-const isWeb3ModalInitialized = !!process.env.NEXT_PUBLIC_WC_PROJECT_ID;
-
 export function DashboardHeader() {
-  const { open } = useWeb3Modal();
+  const { open } = isWeb3ModalInitialized ? useWeb3Modal() : { open: () => null };
   const { address, isConnected } = useAccount();
   const { disconnect: disconnectWagmi } = useDisconnect();
   
