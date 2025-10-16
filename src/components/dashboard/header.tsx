@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { useAccount, useDisconnect } from "wagmi";
 import { signOut } from "firebase/auth";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,17 +21,29 @@ import { SidebarTrigger } from "../ui/sidebar";
 import { Wallet, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
+interface UserProfile {
+  name?: string;
+  avatar?: string;
+}
+
 export function DashboardHeader() {
   const { open } = useWeb3Modal();
   const { address, isConnected } = useAccount();
   const { disconnect: disconnectWagmi } = useDisconnect();
   
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const { user } = useUser();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, `users/${user.uid}/profile`);
+  }, [user, firestore]);
+
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
   const handleLogout = async () => {
     await signOut(auth);
-    // Wagmi disconnect will happen automatically if wallet is connected
     if (isConnected) {
       disconnectWagmi();
     }
@@ -39,6 +52,16 @@ export function DashboardHeader() {
   const formatAddress = (addr: string) => {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   }
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return "U";
+    const parts = name.split(" ");
+    if (parts.length > 1) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    return name[0].toUpperCase();
+  };
+
 
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
@@ -75,16 +98,16 @@ export function DashboardHeader() {
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full">
             <Avatar>
-              <AvatarImage src={user?.photoURL ?? undefined} alt={user?.displayName ?? "User"} />
+              <AvatarImage src={userProfile?.avatar ?? user?.photoURL ?? undefined} alt={userProfile?.name ?? user?.displayName ?? "User"} />
               <AvatarFallback>
-                {user?.displayName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "U"}
+                {getInitials(userProfile?.name ?? user?.displayName)}
               </AvatarFallback>
             </Avatar>
             <span className="sr-only">Toggle user menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
+          <DropdownMenuLabel>{userProfile?.name || user?.displayName || user?.email}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>

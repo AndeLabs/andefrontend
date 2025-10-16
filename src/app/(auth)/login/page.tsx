@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
-import { useAuth, useUser } from "@/firebase";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, User } from "firebase/auth";
+import { doc } from "firebase/firestore";
+import { useAuth, useFirestore, useUser } from "@/firebase";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
@@ -35,12 +38,36 @@ export default function LoginPage() {
       router.push("/dashboard");
     }
   }, [user, isUserLoading, router]);
+  
+  const createUserProfile = (user: User) => {
+    const userProfileRef = doc(firestore, `users/${user.uid}/profile`);
+    const userProfileData = {
+        name: user.displayName || user.email,
+        avatar: user.photoURL || '',
+        preferences: '{}',
+        walletAddresses: [],
+    };
+    setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
+
+    const userSettingsRef = doc(firestore, `users/${user.uid}/settings`);
+    const userSettingsData = {
+        theme: 'dark',
+        language: 'en',
+        notifications: {
+            transactions: true,
+            alerts: true,
+        },
+    };
+    setDocumentNonBlocking(userSettingsRef, userSettingsData, { merge: true });
+  };
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      createUserProfile(userCredential.user);
       // Redirect will be handled by the useEffect
     } catch (error: any) {
       toast({
@@ -55,7 +82,8 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      createUserProfile(result.user);
        // Redirect will be handled by the useEffect
     } catch (error: any) {
       toast({
