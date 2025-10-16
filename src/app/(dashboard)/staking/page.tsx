@@ -1,7 +1,6 @@
 
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,59 +11,26 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Info, Zap, Gift, Shield, BarChart, Unlock } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Info, Zap, Gift } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-const tiers = [
-  {
-    id: 'sequencer',
-    name: 'Sequencer',
-    description: 'Help secure the network by running a sequencer node.',
-    apy: 12.5,
-    icon: <Shield className="w-5 h-5" />,
-  },
-  {
-    id: 'governance',
-    name: 'Governance',
-    description: 'Participate in proposals and vote on the future of the protocol.',
-    apy: 8.2,
-    icon: <BarChart className="w-5 h-5" />,
-  },
-  {
-    id: 'liquidity',
-    name: 'Liquidity',
-    description: 'Provide liquidity to the ecosystem and earn rewards.',
-    apy: 15.0,
-    icon: <Zap className="w-5 h-5" />,
-  },
-];
-
-const lockPeriods = [
-  { months: 3, multiplier: 1.1 },
-  { months: 6, multiplier: 1.25 },
-  { months: 12, multiplier: 1.5 },
-  { months: 24, multiplier: 2.0 },
-];
+import { useStaking, tiers, lockPeriods } from '@/hooks/use-staking';
 
 export default function StakingPage() {
-  const [selectedTier, setSelectedTier] = useState(tiers[0]);
-  const [amount, setAmount] = useState('1000');
-  const [lockPeriodIndex, setLockPeriodIndex] = useState(2); // Default to 12 months
-
-  const lockDetails = lockPeriods[lockPeriodIndex];
-  const finalApy = selectedTier.apy * lockDetails.multiplier;
-  const yearlyReward = (parseFloat(amount) * finalApy) / 100;
-  const monthlyReward = yearlyReward / 12;
+  const {
+    selectedTier,
+    setSelectedTier,
+    amount,
+    setAmount,
+    lockPeriodIndex,
+    setLockPeriodIndex,
+    lockDetails,
+    finalApy,
+    yearlyReward,
+    monthlyReward,
+  } = useStaking();
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
