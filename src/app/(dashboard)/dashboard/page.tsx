@@ -22,13 +22,12 @@ const OverviewChart = dynamic(() =>
   }
 );
 
-
 const portfolioData = [
     { asset: 'AndeChain (AND)', balance: '1,250.50', value: '$2,876.15', allocation: '45%' },
     { asset: 'Ethereum (ETH)', balance: '0.50', value: '$1,750.00', allocation: '30%' },
     { asset: 'USD Coin (USDC)', balance: '1,000.00', value: '$1,000.00', allocation: '15%' },
     { asset: 'Staked AND', balance: '500.00', value: '$1,150.00', allocation: '10%' },
-]
+];
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
