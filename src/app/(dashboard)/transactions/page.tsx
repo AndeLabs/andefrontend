@@ -78,9 +78,9 @@ export default function TransactionsPage() {
   const getStatusBadge = (status: Transaction['status']) => {
     switch (status) {
       case 'Completed':
-        return <Badge variant="secondary" className="bg-green-100/10 text-green-400 border-green-400/20"><CheckCircle className="mr-1 h-3 w-3" />{status}</Badge>;
+        return <Badge variant="secondary" className="bg-green-600/10 text-green-400 border-green-400/20"><CheckCircle className="mr-1 h-3 w-3" />{status}</Badge>;
       case 'Pending':
-        return <Badge variant="secondary" className="bg-yellow-100/10 text-yellow-400 border-yellow-400/20"><Clock className="mr-1 h-3 w-3" />{status}</Badge>;
+        return <Badge variant="secondary" className="bg-yellow-600/10 text-yellow-400 border-yellow-400/20"><Clock className="mr-1 h-3 w-3" />{status}</Badge>;
       case 'Failed':
         return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />{status}</Badge>;
       default:

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/icons';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowRight, CheckCircle, Zap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 export default function LandingPage() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
