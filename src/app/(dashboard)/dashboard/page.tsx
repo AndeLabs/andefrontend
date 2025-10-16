@@ -3,12 +3,16 @@
 
 import dynamic from 'next/dynamic';
 import { DollarSign, Landmark, Wallet } from "lucide-react";
+import { useAccount, useBalance } from 'wagmi';
+import { formatUnits } from 'viem';
+
 import { BalanceCard } from "@/components/dashboard/balance-card";
 import { NetworkStatus } from "@/components/dashboard/network-status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from '@/components/ui/skeleton';
+import { andechanTestnet } from '@/lib/chains';
 
 const OverviewChart = dynamic(() => 
   import('@/components/dashboard/overview-chart').then(mod => mod.OverviewChart),
@@ -27,25 +31,37 @@ const portfolioData = [
 ]
 
 export default function DashboardPage() {
+  const { address, isConnected } = useAccount();
+  const { data: balance, isLoading: isBalanceLoading } = useBalance({
+    address: address,
+    chainId: andechanTestnet.id,
+  });
+
+  const formattedBalance = balance ? parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(2) : '0.00';
+  const balanceDisplay = isConnected ? `${formattedBalance} ${balance?.symbol}` : '$0.00';
+  const usdValueDisplay = isConnected ? `~$${(parseFloat(formattedBalance) * 2.3).toFixed(2)} USD` : 'USD'; // Dummy price
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
       {/* Top Row Cards */}
       <div className="lg:col-span-1">
           <BalanceCard 
             title="Total Balance"
-            balance="$6,776.15"
-            usdValue="USD"
+            balance={balanceDisplay}
+            usdValue={usdValueDisplay}
             change="+2.5%"
             icon={<DollarSign />}
+            isLoading={isBalanceLoading && isConnected}
           />
       </div>
        <div className="lg:col-span-1">
           <BalanceCard 
             title="Wallet Balance"
-            balance="$5,626.15"
-            usdValue="USD"
+            balance={balanceDisplay}
+            usdValue={usdValueDisplay}
             change="+1.8%"
             icon={<Wallet />}
+            isLoading={isBalanceLoading && isConnected}
           />
       </div>
       <div className="lg:col-span-1">
@@ -55,6 +71,7 @@ export default function DashboardPage() {
             usdValue="15.2% APY"
             change="+0.5%"
             icon={<Landmark />}
+            isLoading={false} // Staking data is static for now
           />
       </div>
       <div className="lg:col-span-1">
