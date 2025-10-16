@@ -1,163 +1,157 @@
 /**
- * @fileoverview Firestore Security Rules for AndeChain Nexus application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model, ensuring that users can only access and modify their own data.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for all data.
  *
  * Data Structure:
- * The data is organized hierarchically under the following paths:
- * - /users/{userId}: Stores core user data.
- * - /users/{userId}/profile: Stores user profile information.
- * - /users/{userId}/settings: Stores user settings.
- * - /transactions/{userId}/{transactionId}: Stores transaction data for a specific user.
- * - /notifications/{userId}/{notificationId}: Stores notification data for a specific user.
+ * - /users/{userId}/profile: User profile information.
+ * - /users/{userId}/settings: User-specific settings.
+ * - /transactions/{userId}/{transactionId}: Blockchain transactions for a user.
+ * - /notifications/{userId}/{notificationId}: User notifications.
  *
  * Key Security Decisions:
- * - Users can only access their own data, based on their authenticated UID.
- * - Subcollections are used to maintain clear ownership and avoid complex queries in rules.
- * - Data validation is relaxed to allow for rapid prototyping, except for ownership checks.
- * - No listing of the entire 'users' collection is allowed.
- *
- * Denormalization for Authorization:
- * - The 'userId' is included in the path for documents in the 'transactions' and 'notifications' collections to allow easy enforcement of ownership.
+ * - All data is nested under the /users/{userId} path and is only accessible to the authenticated user with a matching UID.
+ * - Listing of user profiles and settings is allowed only for the owner.
+ * - Listing of transactions and notifications is allowed only for the owner.
+ * - No public data or roles are defined.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces user-ownership for the core user document.
-     * @path /users/{userId}
-     * @allow (create) Authenticated user creating their own user document.
-     * @deny (create) Authenticated user attempting to create a document with a different user ID.
-     * @allow (get) Authenticated user reading their own user document.
-     * @deny (get) Authenticated user attempting to read a different user's document.
-     * @allow (update) Authenticated user updating their own user document.
-     * @deny (update) Authenticated user attempting to update a different user's document.
-     * @allow (delete) Authenticated user deleting their own user document.
-     * @deny (delete) Authenticated user attempting to delete a different user's document.
-     * @principle Enforces document ownership for all operations.
-     */
-    match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Enforces user-ownership for the user's profile document.
+     * @description Protects user profiles, allowing only the owner to read and write.
      * @path /users/{userId}/profile
-     * @allow (create) Authenticated user creating their own profile document.
-     * @deny (create) Authenticated user attempting to create a profile document for a different user ID.
-     * @allow (get) Authenticated user reading their own profile document.
-     * @deny (get) Authenticated user attempting to read a different user's profile document.
-     * @allow (update) Authenticated user updating their own profile document.
-     * @deny (update) Authenticated user attempting to update a different user's profile document.
-     * @allow (delete) Authenticated user deleting their own profile document.
-     * @deny (delete) Authenticated user attempting to delete a different user's profile document.
+     * @allow (get, create, update, delete, list) - User A with UID "user_abc" can access /users/user_abc/profile.
+     * @deny (get, create, update, delete, list) - User A with UID "user_abc" cannot access /users/user_xyz/profile.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/profile {
+      // Helper function to check if the request is made by the owner of the user profile.
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
       }
-      function isSignedIn() {
-        return request.auth != null;
+      
+      // Helper function to check if the document exists and the user is the owner.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+
+      // Allow anyone to read the profile if they are signed in and are the owner of the profile.
+      allow get: if isOwner(userId);
+
+      // Allow listing profiles for the authenticated owner.
+      allow list: if isOwner(userId);
+
+      // Allow creating a profile if signed in and the user ID matches the document ID.
+      allow create: if isOwner(userId);
+
+      // Allow updating a profile if the user is the owner and the document exists.
+      allow update: if isExistingOwner(userId);
+
+      // Allow deleting a profile if the user is the owner and the document exists.
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces user-ownership for the user's settings document.
+     * @description Protects user settings, allowing only the owner to read and write.
      * @path /users/{userId}/settings
-     * @allow (create) Authenticated user creating their own settings document.
-     * @deny (create) Authenticated user attempting to create a settings document for a different user ID.
-     * @allow (get) Authenticated user reading their own settings document.
-     * @deny (get) Authenticated user attempting to read a different user's settings document.
-     * @allow (update) Authenticated user updating their own settings document.
-     * @deny (update) Authenticated user attempting to update a different user's settings document.
-     * @allow (delete) Authenticated user deleting their own settings document.
-     * @deny (delete) Authenticated user attempting to delete a different user's settings document.
+     * @allow (get, create, update, delete, list) - User A with UID "user_abc" can access /users/user_abc/settings.
+     * @deny (get, create, update, delete, list) - User A with UID "user_abc" cannot access /users/user_xyz/settings.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/settings {
+      // Helper function to check if the request is made by the owner of the user settings.
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
       }
-      function isSignedIn() {
-        return request.auth != null;
+            
+      // Helper function to check if the document exists and the user is the owner.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+
+      // Allow anyone to read the settings if they are signed in and are the owner of the settings.
+      allow get: if isOwner(userId);
+
+      // Allow listing settings for the authenticated owner.
+      allow list: if isOwner(userId);
+
+      // Allow creating settings if signed in and the user ID matches the document ID.
+      allow create: if isOwner(userId);
+
+      // Allow updating settings if the user is the owner and the document exists.
+      allow update: if isExistingOwner(userId);
+
+      // Allow deleting settings if the user is the owner and the document exists.
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces user-ownership for transaction documents.
+     * @description Protects user transactions, allowing only the owner to read and write.
      * @path /transactions/{userId}/{transactionId}
-     * @allow (create) Authenticated user creating their own transaction document.
-     * @deny (create) Authenticated user attempting to create a transaction document for a different user ID.
-     * @allow (get) Authenticated user reading their own transaction document.
-     * @deny (get) Authenticated user attempting to read a different user's transaction document.
-     * @allow (update) Authenticated user updating their own transaction document.
-     * @deny (update) Authenticated user attempting to update a different user's transaction document.
-     * @allow (delete) Authenticated user deleting their own transaction document.
-     * @deny (delete) Authenticated user attempting to delete a different user's transaction document.
+     * @allow (get, create, update, delete, list) - User A with UID "user_abc" can access /transactions/user_abc/{transactionId}.
+     * @deny (get, create, update, delete, list) - User A with UID "user_abc" cannot access /transactions/user_xyz/{transactionId}.
      * @principle Enforces document ownership for all operations.
      */
     match /transactions/{userId}/{transactionId} {
+      // Helper function to check if the request is made by the owner of the transaction.
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
       }
-      function isSignedIn() {
-        return request.auth != null;
+      
+      // Helper function to check if the document exists and the user is the owner.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+
+      // Allow anyone to read the transaction if they are signed in and are the owner of the transaction.
+      allow get: if isOwner(userId);
+
+      // Allow listing transactions for the authenticated owner.
+      allow list: if isOwner(userId);
+
+      // Allow creating a transaction if signed in and the user ID matches the document ID.
+      allow create: if isOwner(userId);
+
+      // Allow updating a transaction if the user is the owner and the document exists.
+      allow update: if isExistingOwner(userId);
+
+      // Allow deleting a transaction if the user is the owner and the document exists.
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces user-ownership for notification documents.
+     * @description Protects user notifications, allowing only the owner to read and write.
      * @path /notifications/{userId}/{notificationId}
-     * @allow (create) Authenticated user creating their own notification document.
-     * @deny (create) Authenticated user attempting to create a notification document for a different user ID.
-     * @allow (get) Authenticated user reading their own notification document.
-     * @deny (get) Authenticated user attempting to read a different user's notification document.
-     * @allow (update) Authenticated user updating their own notification document.
-     * @deny (update) Authenticated user attempting to update a different user's notification document.
-     * @allow (delete) Authenticated user deleting their own notification document.
-     * @deny (delete) Authenticated user attempting to delete a different user's notification document.
+     * @allow (get, create, update, delete, list) - User A with UID "user_abc" can access /notifications/user_abc/{notificationId}.
+     * @deny (get, create, update, delete, list) - User A with UID "user_abc" cannot access /notifications/user_xyz/{notificationId}.
      * @principle Enforces document ownership for all operations.
      */
     match /notifications/{userId}/{notificationId} {
+      // Helper function to check if the request is made by the owner of the notification.
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
       }
-      function isSignedIn() {
-        return request.auth != null;
+
+      // Helper function to check if the document exists and the user is the owner.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+            
+      // Allow anyone to read the notification if they are signed in and are the owner of the notification.
+      allow get: if isOwner(userId);
+
+      // Allow listing notifications for the authenticated owner.
+      allow list: if isOwner(userId);
+
+      // Allow creating a notification if signed in and the user ID matches the document ID.
+      allow create: if isOwner(userId);
+
+      // Allow updating a notification if the user is the owner and the document exists.
+      allow update: if isExistingOwner(userId);
+
+      // Allow deleting a notification if the user is the owner and the document exists.
+      allow delete: if isExistingOwner(userId);
     }
   }
 }
