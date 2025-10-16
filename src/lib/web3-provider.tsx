@@ -8,10 +8,6 @@ import { andechanTestnet } from './chains';
 
 const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID;
 
-if (!projectId) {
-  console.error('NEXT_PUBLIC_WC_PROJECT_ID is not set. Please set it in your environment variables.');
-}
-
 const metadata = {
   name: 'AndeChain Nexus',
   description: 'Enterprise-grade Web3 DeFi Application',

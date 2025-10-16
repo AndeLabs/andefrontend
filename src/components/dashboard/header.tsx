@@ -26,6 +26,8 @@ interface UserProfile {
   avatar?: string;
 }
 
+const isWeb3ModalInitialized = !!process.env.NEXT_PUBLIC_WC_PROJECT_ID;
+
 export function DashboardHeader() {
   const { open } = useWeb3Modal();
   const { address, isConnected } = useAccount();
@@ -86,7 +88,13 @@ export function DashboardHeader() {
          </DropdownMenuContent>
        </DropdownMenu>
       ) : (
-        <Button variant="outline" className="h-9" onClick={() => open()}>
+        <Button 
+          variant="outline" 
+          className="h-9" 
+          onClick={() => open()}
+          disabled={!isWeb3ModalInitialized}
+          title={!isWeb3ModalInitialized ? "Web3Modal is not configured. Please set NEXT_PUBLIC_WC_PROJECT_ID." : "Connect Wallet"}
+        >
           <Wallet className="h-4 w-4 mr-2" />
           <span className="text-sm">Connect Wallet</span>
         </Button>
