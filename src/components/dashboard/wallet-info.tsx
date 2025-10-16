@@ -1,67 +1,75 @@
 
 "use client";
 
-import { useAccount, useBalance, useBlockNumber } from "wagmi";
+import { useAccount, useBlockNumber } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatUnits } from "viem";
 import { andechanTestnet } from "@/lib/chains";
+import { Separator } from "../ui/separator";
 
-export function WalletInfo() {
-  const { address, isConnected, chain } = useAccount();
-  
-  const { data: balance, isLoading: isBalanceLoading } = useBalance({
-    address: address,
-    watch: true,
-  });
-
+export function NetworkStatus() {
+  const { isConnected, chain } = useAccount();
   const { data: blockNumber, isLoading: isBlockLoading } = useBlockNumber({ watch: true });
   
   const isCorrectNetwork = chain?.id === andechanTestnet.id;
 
-  if (!isConnected) {
+  const renderStatus = () => {
+    if (!isConnected) {
+      return <p className="text-sm text-muted-foreground">Please connect your wallet.</p>;
+    }
+    if (!isCorrectNetwork) {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          </span>
+          <p className="text-sm font-semibold text-destructive">Wrong Network</p>
+        </div>
+      );
+    }
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Wallet</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Please connect your wallet.</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+        </span>
+        <p className="text-sm font-semibold text-green-500">Operational</p>
+      </div>
     );
-  }
-
+  };
+  
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">Network Status</CardTitle>
+        <CardDescription className="text-xs">{andechanTestnet.name}</CardDescription>
       </CardHeader>
       <CardContent>
-        {isCorrectNetwork ? (
-          <div className="flex items-center gap-2">
-             <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-              <div>
-                <p className="text-sm font-semibold">
-                  {andechanTestnet.name}
-                </p>
-                {isBlockLoading ? <Skeleton className="h-4 w-20 mt-1" /> : <p className="text-xs text-muted-foreground">Block: {blockNumber?.toString()}</p>}
-              </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground text-sm">Status</span>
+            {renderStatus()}
           </div>
-        ) : (
-           <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            </span>
-             <p className="text-sm font-semibold text-destructive">
-              Wrong Network
-            </p>
+          <Separator />
+           <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Gas Price</div>
+                  <div className="font-semibold">5 Gwei</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">TPS</div>
+                  <div className="font-semibold">24.5</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Latest Block</div>
+                   {isBlockLoading ? <Skeleton className="h-5 w-16 mt-1" /> : <div className="font-semibold">{blockNumber?.toString()}</div>}
+                </div>
+                 <div>
+                  <div className="text-muted-foreground">Uptime</div>
+                  <div className="font-semibold">99.98%</div>
+                </div>
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

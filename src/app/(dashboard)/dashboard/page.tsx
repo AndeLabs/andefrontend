@@ -4,7 +4,7 @@
 import { DollarSign, Landmark, Wallet } from "lucide-react";
 import { BalanceCard } from "@/components/dashboard/balance-card";
 import { OverviewChart } from "@/components/dashboard/overview-chart";
-import { WalletInfo } from "@/components/dashboard/wallet-info";
+import { NetworkStatus } from "@/components/dashboard/network-status";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +48,7 @@ export default function DashboardPage() {
           />
       </div>
       <div className="lg:col-span-1">
-         <WalletInfo />
+         <NetworkStatus />
       </div>
 
       {/* Main Content Area */}
