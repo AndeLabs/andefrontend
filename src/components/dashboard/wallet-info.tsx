@@ -1,6 +1,6 @@
 "use client";
 
-import { useAccount, useBalance, useBlockNumber, useChainId, useReadContract } from "wagmi";
+import { useAccount, useBalance, useBlockNumber } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ export function WalletInfo() {
   
   const { data: balance, isLoading: isBalanceLoading } = useBalance({
     address: address,
+    watch: true,
   });
 
   const { data: blockNumber, isLoading: isBlockLoading } = useBlockNumber({ watch: true });
