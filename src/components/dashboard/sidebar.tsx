@@ -5,6 +5,7 @@ import {
   Settings,
   Wallet,
   Landmark,
+  Gavel,
 } from "lucide-react";
 
 import { Icons } from "../icons";
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/transactions", icon: ArrowLeftRight, label: "Transactions" },
   { href: "/staking", icon: Landmark, label: "Staking" },
+  { href: "/governance", icon: Gavel, label: "Governance" },
   { href: "#", icon: Wallet, label: "Wallets" },
   { href: "#", icon: Settings, label: "Settings" },
 ];
@@ -72,5 +74,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
