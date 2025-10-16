@@ -1,0 +1,163 @@
+/**
+ * @fileoverview Firestore Security Rules for AndeChain Nexus application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model, ensuring that users can only access and modify their own data.
+ *
+ * Data Structure:
+ * The data is organized hierarchically under the following paths:
+ * - /users/{userId}: Stores core user data.
+ * - /users/{userId}/profile: Stores user profile information.
+ * - /users/{userId}/settings: Stores user settings.
+ * - /transactions/{userId}/{transactionId}: Stores transaction data for a specific user.
+ * - /notifications/{userId}/{notificationId}: Stores notification data for a specific user.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data, based on their authenticated UID.
+ * - Subcollections are used to maintain clear ownership and avoid complex queries in rules.
+ * - Data validation is relaxed to allow for rapid prototyping, except for ownership checks.
+ * - No listing of the entire 'users' collection is allowed.
+ *
+ * Denormalization for Authorization:
+ * - The 'userId' is included in the path for documents in the 'transactions' and 'notifications' collections to allow easy enforcement of ownership.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Enforces user-ownership for the core user document.
+     * @path /users/{userId}
+     * @allow (create) Authenticated user creating their own user document.
+     * @deny (create) Authenticated user attempting to create a document with a different user ID.
+     * @allow (get) Authenticated user reading their own user document.
+     * @deny (get) Authenticated user attempting to read a different user's document.
+     * @allow (update) Authenticated user updating their own user document.
+     * @deny (update) Authenticated user attempting to update a different user's document.
+     * @allow (delete) Authenticated user deleting their own user document.
+     * @deny (delete) Authenticated user attempting to delete a different user's document.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Enforces user-ownership for the user's profile document.
+     * @path /users/{userId}/profile
+     * @allow (create) Authenticated user creating their own profile document.
+     * @deny (create) Authenticated user attempting to create a profile document for a different user ID.
+     * @allow (get) Authenticated user reading their own profile document.
+     * @deny (get) Authenticated user attempting to read a different user's profile document.
+     * @allow (update) Authenticated user updating their own profile document.
+     * @deny (update) Authenticated user attempting to update a different user's profile document.
+     * @allow (delete) Authenticated user deleting their own profile document.
+     * @deny (delete) Authenticated user attempting to delete a different user's profile document.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/profile {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Enforces user-ownership for the user's settings document.
+     * @path /users/{userId}/settings
+     * @allow (create) Authenticated user creating their own settings document.
+     * @deny (create) Authenticated user attempting to create a settings document for a different user ID.
+     * @allow (get) Authenticated user reading their own settings document.
+     * @deny (get) Authenticated user attempting to read a different user's settings document.
+     * @allow (update) Authenticated user updating their own settings document.
+     * @deny (update) Authenticated user attempting to update a different user's settings document.
+     * @allow (delete) Authenticated user deleting their own settings document.
+     * @deny (delete) Authenticated user attempting to delete a different user's settings document.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/settings {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Enforces user-ownership for transaction documents.
+     * @path /transactions/{userId}/{transactionId}
+     * @allow (create) Authenticated user creating their own transaction document.
+     * @deny (create) Authenticated user attempting to create a transaction document for a different user ID.
+     * @allow (get) Authenticated user reading their own transaction document.
+     * @deny (get) Authenticated user attempting to read a different user's transaction document.
+     * @allow (update) Authenticated user updating their own transaction document.
+     * @deny (update) Authenticated user attempting to update a different user's transaction document.
+     * @allow (delete) Authenticated user deleting their own transaction document.
+     * @deny (delete) Authenticated user attempting to delete a different user's transaction document.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /transactions/{userId}/{transactionId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Enforces user-ownership for notification documents.
+     * @path /notifications/{userId}/{notificationId}
+     * @allow (create) Authenticated user creating their own notification document.
+     * @deny (create) Authenticated user attempting to create a notification document for a different user ID.
+     * @allow (get) Authenticated user reading their own notification document.
+     * @deny (get) Authenticated user attempting to read a different user's notification document.
+     * @allow (update) Authenticated user updating their own notification document.
+     * @deny (update) Authenticated user attempting to update a different user's notification document.
+     * @allow (delete) Authenticated user deleting their own notification document.
+     * @deny (delete) Authenticated user attempting to delete a different user's notification document.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /notifications/{userId}/{notificationId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+    }
+  }
+}
