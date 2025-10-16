@@ -2,7 +2,8 @@
 "use client";
 
 import { memo } from 'react';
-import { useAccount, useBlockNumber } from "wagmi";
+import { useAccount, useBlockNumber, useFeeData } from "wagmi";
+import { formatGwei } from 'viem';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { andechanTestnet } from "@/lib/chains";
@@ -11,8 +12,13 @@ import { Separator } from "../ui/separator";
 function NetworkStatusComponent() {
   const { isConnected, chain } = useAccount();
   const { data: blockNumber, isLoading: isBlockLoading } = useBlockNumber({ watch: true });
+  const { data: feeData, isLoading: isFeeLoading } = useFeeData({
+      watch: true,
+      chainId: andechanTestnet.id,
+  });
   
   const isCorrectNetwork = chain?.id === andechanTestnet.id;
+  const gasPriceInGwei = feeData?.gasPrice ? formatGwei(feeData.gasPrice) : null;
 
   const renderStatus = () => {
     if (!isConnected) {
@@ -55,7 +61,7 @@ function NetworkStatusComponent() {
            <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <div className="text-muted-foreground">Gas Price</div>
-                  <div className="font-semibold">5 Gwei</div>
+                  {isFeeLoading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="font-semibold">{gasPriceInGwei ? `${parseFloat(gasPriceInGwei).toFixed(2)} Gwei` : 'N/A'}</div>}
                 </div>
                 <div>
                   <div className="text-muted-foreground">TPS</div>
