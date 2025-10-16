@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Web3Provider } from '@/lib/web3-provider';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'AndeChain Nexus',
@@ -24,9 +25,11 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <Web3Provider>
+        <FirebaseClientProvider>
+          <Web3Provider>
             {children}
-        </Web3Provider>
+          </Web3Provider>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

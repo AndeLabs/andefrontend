@@ -1,40 +1,10 @@
 {
   "entities": {
-    "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
-      "type": "object",
-      "description": "Represents a user within the AndeChain Nexus application.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user entity."
-        },
-        "profile": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: User 1:1 UserProfile)"
-        },
-        "settings": {
-          "type": "string",
-          "description": "Reference to UserSettings. (Relationship: User 1:1 UserSettings)"
-        }
-      },
-      "required": [
-        "id",
-        "profile",
-        "settings"
-      ]
-    },
     "UserProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserProfile",
+      "title": "User Profile",
       "type": "object",
       "description": "Stores user profile information such as name, avatar, and preferences.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user profile entity."
-        },
         "name": {
           "type": "string",
           "description": "User's full name."
@@ -46,8 +16,7 @@
         },
         "preferences": {
           "type": "string",
-          "description": "User's preferences, stored as a serialized JSON string.",
-          "format": "string"
+          "description": "User's preferences, stored as a serialized JSON string."
         },
         "walletAddresses": {
           "type": "array",
@@ -58,130 +27,102 @@
         }
       },
       "required": [
-        "id",
-        "name",
-        "avatar",
-        "preferences",
-        "walletAddresses"
+        "name"
       ]
     },
     "UserSettings": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserSettings",
+      "title": "User Settings",
       "type": "object",
       "description": "Stores user-specific settings like theme, language, and notification preferences.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user settings entity."
-        },
         "theme": {
           "type": "string",
-          "description": "User's preferred theme (e.g., light, dark)."
+          "description": "User's preferred theme (e.g., light, dark).",
+          "enum": [
+            "light",
+            "dark",
+            "system"
+          ]
         },
         "language": {
           "type": "string",
           "description": "User's preferred language."
         },
         "notifications": {
-          "type": "string",
-          "description": "User's notification preferences, stored as a serialized JSON string.",
-          "format": "string"
+          "type": "object",
+          "properties": {
+            "transactions": {
+              "type": "boolean"
+            },
+            "alerts": {
+              "type": "boolean"
+            }
+          }
         }
-      },
-      "required": [
-        "id",
-        "theme",
-        "language",
-        "notifications"
-      ]
+      }
     },
     "Transaction": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Transaction",
       "type": "object",
       "description": "Represents a blockchain transaction.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the transaction entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Transaction)"
-        },
         "timestamp": {
           "type": "string",
-          "description": "Timestamp of the transaction.",
           "format": "date-time"
         },
         "fromAddress": {
-          "type": "string",
-          "description": "Sender's blockchain address."
+          "type": "string"
         },
         "toAddress": {
-          "type": "string",
-          "description": "Recipient's blockchain address."
+          "type": "string"
         },
         "amount": {
-          "type": "number",
-          "description": "Amount transferred in the transaction."
+          "type": "number"
         },
         "status": {
           "type": "string",
-          "description": "Status of the transaction (e.g., pending, confirmed, failed)."
+          "enum": [
+            "pending",
+            "confirmed",
+            "failed"
+          ]
         },
         "blockchainConfirmation": {
-          "type": "string",
-          "description": "Details or status of blockchain confirmation."
+          "type": "string"
         }
       },
       "required": [
-        "id",
-        "userId",
         "timestamp",
         "fromAddress",
         "toAddress",
         "amount",
-        "status",
-        "blockchainConfirmation"
+        "status"
       ]
     },
     "Notification": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Notification",
       "type": "object",
       "description": "Represents a user notification.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the notification entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Notification)"
-        },
         "type": {
           "type": "string",
-          "description": "Type of notification (e.g., transaction, alert)."
+          "enum": [
+            "transaction",
+            "alert"
+          ]
         },
         "message": {
-          "type": "string",
-          "description": "Notification message."
+          "type": "string"
         },
         "read": {
-          "type": "boolean",
-          "description": "Indicates whether the notification has been read."
+          "type": "boolean"
         },
         "timestamp": {
           "type": "string",
-          "description": "Timestamp of the notification.",
           "format": "date-time"
         }
       },
       "required": [
-        "id",
-        "userId",
         "type",
         "message",
         "read",
@@ -192,100 +133,33 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "google.com"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores core user data. Includes 'userId' as the document ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+    "/users/{userId}/profile": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
       },
-      {
-        "path": "/users/{userId}/profile",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores user profile information. Includes 'userId' as the document ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+      "description": "Stores the profile for a single user."
+    },
+    "/users/{userId}/settings": {
+      "schema": {
+        "$ref": "#/entities/UserSettings"
       },
-      {
-        "path": "/users/{userId}/settings",
-        "definition": {
-          "entityName": "UserSettings",
-          "schema": {
-            "$ref": "#/backend/entities/UserSettings"
-          },
-          "description": "Stores user settings. Includes 'userId' as the document ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+      "description": "Stores settings for a single user."
+    },
+    "/transactions/{userId}/{transactionId}": {
+      "schema": {
+        "$ref": "#/entities/Transaction"
       },
-      {
-        "path": "/transactions/{userId}/{transactionId}",
-        "definition": {
-          "entityName": "Transaction",
-          "schema": {
-            "$ref": "#/backend/entities/Transaction"
-          },
-          "description": "Stores transaction data for a specific user. Includes 'userId' and 'transactionId' as the document ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "transactionId",
-              "description": "The unique identifier for the transaction."
-            }
-          ]
-        }
+      "description": "Stores a single transaction for a user."
+    },
+    "/notifications/{userId}/{notificationId}": {
+      "schema": {
+        "$ref": "#/entities/Notification"
       },
-      {
-        "path": "/notifications/{userId}/{notificationId}",
-        "definition": {
-          "entityName": "Notification",
-          "schema": {
-            "$ref": "#/backend/entities/Notification"
-          },
-          "description": "Stores notification data for a specific user. Includes 'userId' and 'notificationId' as the document ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "notificationId",
-              "description": "The unique identifier for the notification."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability, aligning with the specified principles. It leverages path-based ownership for user-specific data and avoids hierarchical authorization dependencies to simplify security rules and maintain atomic operations. The design supports QAPs by segregating data based on access requirements.\n\n*   **Users Collection:** Stores core user data, settings, and profiles.  It uses path-based ownership. Profiles and Settings are stored as separate subcollections for better organization.\n*   **Transactions Collection:** Transactions are stored within a subcollection of the user. This enforces that a user only has access to their own transactions and simplifies querying of transactions for a specific user.\n*   **Notifications Collection:** Notifications are stored within a subcollection of the user. This ensures that a user only has access to their own notifications and simplifies querying of notifications for a specific user.\n\nThis structure allows for straightforward security rules based on `request.auth.uid` and eliminates the need for complex `get()` calls, thus simplifying debugging and enhancing security."
+      "description": "Stores a single notification for a user."
+    }
   }
 }

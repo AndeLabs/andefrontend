@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { useAccount, useDisconnect } from "wagmi";
+import { signOut } from "firebase/auth";
+import { useAuth, useUser } from "@/firebase";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,12 +17,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "../theme-toggle";
 import { SidebarTrigger } from "../ui/sidebar";
-import { Wallet } from "lucide-react";
+import { Wallet, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export function DashboardHeader() {
   const { open } = useWeb3Modal();
   const { address, isConnected } = useAccount();
-  const { disconnect } = useDisconnect();
+  const { disconnect: disconnectWagmi } = useDisconnect();
+  
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    // Wagmi disconnect will happen automatically if wallet is connected
+    if (isConnected) {
+      disconnectWagmi();
+    }
+  };
 
   const formatAddress = (addr: string) => {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
@@ -40,8 +57,8 @@ export function DashboardHeader() {
           </Button>
          </DropdownMenuTrigger>
          <DropdownMenuContent align="end">
-           <DropdownMenuItem onClick={() => disconnect()}>
-             Disconnect
+           <DropdownMenuItem onClick={() => disconnectWagmi()}>
+             Disconnect Wallet
            </DropdownMenuItem>
          </DropdownMenuContent>
        </DropdownMenu>
@@ -57,24 +74,24 @@ export function DashboardHeader() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full">
-            <svg
-              className="h-8 w-8 text-muted-foreground"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
+            <Avatar>
+              <AvatarImage src={user?.photoURL ?? undefined} alt={user?.displayName ?? "User"} />
+              <AvatarFallback>
+                {user?.displayName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "U"}
+              </AvatarFallback>
+            </Avatar>
             <span className="sr-only">Toggle user menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
-           <DropdownMenuItem asChild>
-            <Link href="/login">Logout</Link>
+           <DropdownMenuItem onClick={handleLogout}>
+             <LogOut className="mr-2 h-4 w-4" />
+             <span>Logout</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
