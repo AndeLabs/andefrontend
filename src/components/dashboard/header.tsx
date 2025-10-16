@@ -1,12 +1,12 @@
+
 "use client";
 
 import Link from "next/link";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { useAccount, useDisconnect } from "wagmi";
-import { signOut } from "firebase/auth";
-import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useFirebase } from "@/firebase";
 import { isWeb3ModalInitialized } from "@/lib/web3-provider";
+import { useAuthActions } from "@/hooks/use-auth-actions";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,34 +21,16 @@ import { ThemeToggle } from "../theme-toggle";
 import { SidebarTrigger } from "../ui/sidebar";
 import { Wallet, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Skeleton } from "../ui/skeleton";
 
-interface UserProfile {
-  name?: string;
-  avatar?: string;
-}
 
 export function DashboardHeader() {
   const { open } = isWeb3ModalInitialized ? useWeb3Modal() : { open: () => null };
   const { address, isConnected } = useAccount();
   const { disconnect: disconnectWagmi } = useDisconnect();
   
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const { user } = useUser();
-
-  const userProfileRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, `users/${user.uid}/profile`);
-  }, [user, firestore]);
-
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    if (isConnected) {
-      disconnectWagmi();
-    }
-  };
+  const { user, userProfile, isUserProfileLoading } = useFirebase();
+  const { handleLogout } = useAuthActions();
 
   const formatAddress = (addr: string) => {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
@@ -62,7 +44,6 @@ export function DashboardHeader() {
     }
     return name[0].toUpperCase();
   };
-
 
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
@@ -104,12 +85,16 @@ export function DashboardHeader() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full">
-            <Avatar>
-              <AvatarImage src={userProfile?.avatar ?? user?.photoURL ?? undefined} alt={userProfile?.name ?? user?.displayName ?? "User"} />
-              <AvatarFallback>
-                {getInitials(userProfile?.name ?? user?.displayName)}
-              </AvatarFallback>
-            </Avatar>
+             {isUserProfileLoading ? (
+                <Skeleton className="h-8 w-8 rounded-full" />
+             ) : (
+                <Avatar>
+                  <AvatarImage src={userProfile?.avatar ?? user?.photoURL ?? undefined} alt={userProfile?.name ?? user?.displayName ?? "User"} />
+                  <AvatarFallback>
+                    {getInitials(userProfile?.name ?? user?.displayName)}
+                  </AvatarFallback>
+                </Avatar>
+             )}
             <span className="sr-only">Toggle user menu</span>
           </Button>
         </DropdownMenuTrigger>
