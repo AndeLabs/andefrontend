@@ -22,7 +22,7 @@ import { Separator } from "../ui/separator";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "#", icon: ArrowLeftRight, label: "Transactions" },
+  { href: "/transactions", icon: ArrowLeftRight, label: "Transactions" },
   { href: "#", icon: Landmark, label: "Staking" },
   { href: "#", icon: Wallet, label: "Wallets" },
   { href: "#", icon: Settings, label: "Settings" },
