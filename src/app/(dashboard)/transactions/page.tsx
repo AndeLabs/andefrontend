@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, PlusCircle, CheckCircle, Clock, XCircle } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, PlusCircle, CheckCircle, Clock, XCircle, Landmark } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
@@ -39,15 +39,17 @@ export default function TransactionsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const transactionsRef = useMemoFirebase(() => {
+  const transactionsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return collection(firestore, `transactions/${user.uid}`);
+    const baseRef = collection(firestore, `transactions/${user.uid}`);
+    // Order transactions by timestamp in descending order at the query level
+    return query(baseRef, orderBy("timestamp", "desc"));
   }, [user, firestore]);
 
-  const { data: transactions, isLoading } = useCollection<Transaction>(transactionsRef);
+  const { data: transactions, isLoading } = useCollection<Transaction>(transactionsQuery);
 
   const createSampleTransaction = () => {
-    if (!transactionsRef) return;
+    if (!transactionsQuery) return;
     const sampleTx: Omit<Transaction, 'id' | 'timestamp'> = {
       hash: "0x" + Math.random().toString(16).substr(2, 8) + "..." + Math.random().toString(16).substr(2, 8),
       type: ["Send", "Receive", "Staking"][Math.floor(Math.random() * 3)] as Transaction['type'],
@@ -57,7 +59,8 @@ export default function TransactionsPage() {
       status: ["Completed", "Pending", "Failed"][Math.floor(Math.random() * 3)] as Transaction['status'],
     };
     
-    addDocumentNonBlocking(transactionsRef, {
+    // Use the non-blocking Firestore update function
+    addDocumentNonBlocking(collection(firestore, `transactions/${user.uid}`), {
       ...sampleTx,
       timestamp: serverTimestamp(),
     });
@@ -65,6 +68,7 @@ export default function TransactionsPage() {
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '...';
+    // Check if it's a Firestore timestamp
     if (timestamp?.toDate) {
       return timestamp.toDate().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -72,6 +76,7 @@ export default function TransactionsPage() {
         day: 'numeric',
       });
     }
+    // Fallback for string or number dates
     return new Date(timestamp).toLocaleDateString();
   }
 
@@ -87,6 +92,32 @@ export default function TransactionsPage() {
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
+  
+  const getTypeIcon = (type: Transaction['type']) => {
+     switch (type) {
+      case "Send":
+        return (
+          <span className="p-1.5 bg-red-500/10 rounded-full">
+            <ArrowUpRight className="h-4 w-4 text-red-400" />
+          </span>
+        );
+      case "Receive":
+        return (
+          <span className="p-1.5 bg-green-500/10 rounded-full">
+            <ArrowDownLeft className="h-4 w-4 text-green-400" />
+          </span>
+        );
+      case "Staking":
+        return (
+          <span className="p-1.5 bg-blue-500/10 rounded-full">
+            <Landmark className="h-4 w-4 text-blue-400" />
+          </span>
+        );
+      default:
+        return null;
+    }
+  }
+
 
   return (
     <Card>
@@ -124,23 +155,11 @@ export default function TransactionsPage() {
                 </TableRow>
               ))
             )}
-            {!isLoading && transactions && transactions.length > 0 && [...transactions].sort((a,b) => (b.timestamp?.seconds ?? 0) - (a.timestamp?.seconds ?? 0)).map((tx) => (
+            {!isLoading && transactions && transactions.length > 0 && transactions.map((tx) => (
               <TableRow key={tx.id}>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {tx.type === "Send" ? (
-                      <span className="p-1.5 bg-red-500/10 rounded-full">
-                        <ArrowUpRight className="h-4 w-4 text-red-400" />
-                      </span>
-                    ) : tx.type === "Receive" ? (
-                      <span className="p-1.5 bg-green-500/10 rounded-full">
-                        <ArrowDownLeft className="h-4 w-4 text-green-400" />
-                      </span>
-                    ) : (
-                       <span className="p-1.5 bg-blue-500/10 rounded-full">
-                        <ArrowUpRight className="h-4 w-4 text-blue-400" />
-                      </span>
-                    )}
+                    {getTypeIcon(tx.type)}
                     <span className="font-medium">{tx.type}</span>
                   </div>
                 </TableCell>
