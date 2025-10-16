@@ -28,7 +28,7 @@ const generateChartData = (days: number) => {
 };
 
 
-function OverviewChartComponent() {
+export function OverviewChart() {
   const [timeRange, setTimeRange] = useState<number>(30);
 
   const data = useMemo(() => generateChartData(timeRange), [timeRange]);
@@ -88,5 +88,3 @@ function OverviewChartComponent() {
     </Card>
   )
 }
-
-export const OverviewChart = OverviewChartComponent;

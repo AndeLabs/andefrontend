@@ -18,7 +18,7 @@ const OverviewChart = dynamic(() =>
   import('@/components/dashboard/overview-chart').then(mod => mod.OverviewChart),
   { 
     ssr: false,
-    loading: () => <Skeleton className="h-[350px] w-full" />,
+    loading: () => <Skeleton className="h-[280px] w-full" />,
   }
 );
 
