@@ -1,13 +1,17 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, User } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, User, signInWithCustomToken } from "firebase/auth";
 import { doc } from "firebase/firestore";
 import { useAuth, useFirestore, useUser } from "@/firebase";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useAccount, useSignMessage } from 'wagmi';
+import { SiweMessage } from 'siwe';
+import { getNonce, verifySignature } from '@/ai/flows/siwe-flow';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icons } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
+import { andechanTestnet } from "@/lib/chains";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,6 +37,9 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  
+  const { address, chainId } = useAccount();
+  const { signMessageAsync } = useSignMessage();
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -42,10 +50,10 @@ export default function LoginPage() {
   const createUserProfile = (user: User) => {
     const userProfileRef = doc(firestore, `users/${user.uid}/profile`);
     const userProfileData = {
-        name: user.displayName || user.email,
+        name: user.displayName || user.email || user.uid,
         avatar: user.photoURL || '',
         preferences: '{}',
-        walletAddresses: [],
+        walletAddresses: user.providerData.some(p => p.providerId === 'siwe') ? [user.uid] : [],
     };
     setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
 
@@ -91,6 +99,52 @@ export default function LoginPage() {
         title: "Google Sign-In Failed",
         description: error.message,
       });
+    }
+  };
+
+  const handleSiweSignIn = async () => {
+    setIsLoading(true);
+    try {
+      if (!address || !chainId) {
+        throw new Error('Please connect your wallet first.');
+      }
+      
+      // 1. Get nonce from server
+      const nonce = await getNonce();
+
+      // 2. Create SIWE message
+      const message = new SiweMessage({
+        domain: window.location.host,
+        address,
+        statement: 'Sign in with Ethereum to AndeChain Nexus.',
+        uri: window.location.origin,
+        version: '1',
+        chainId,
+        nonce,
+      });
+
+      // 3. Sign message
+      const serializedMessage = JSON.stringify(message.prepareMessage());
+      const signature = await signMessageAsync({ message: serializedMessage });
+
+      // 4. Verify signature and get Firebase custom token
+      const { token } = await verifySignature({
+        message: serializedMessage,
+        signature,
+      });
+
+      // 5. Sign in with custom token
+      const userCredential = await signInWithCustomToken(auth, token);
+      createUserProfile(userCredential.user);
+
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "SIWE Failed",
+        description: error.message,
+      });
+    } finally {
+        setIsLoading(false);
     }
   };
   
@@ -164,6 +218,10 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
+           <Button variant="outline" className="w-full" onClick={handleSiweSignIn} disabled={isLoading || !address}>
+            <Icons.logo className="mr-2 h-4 w-4" />
+            Sign in with Ethereum
+          </Button>
           <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
             Sign in with Google
           </Button>

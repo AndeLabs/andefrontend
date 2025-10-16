@@ -133,7 +133,8 @@
   "auth": {
     "providers": [
       "password",
-      "google.com"
+      "google.com",
+      "siwe"
     ]
   },
   "firestore": {
