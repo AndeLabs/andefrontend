@@ -1,0 +1,44 @@
+'use client';
+
+import { createWeb3Modal } from '@web3modal/wagmi/react';
+import { WagmiProvider, createConfig, http } from 'wagmi';
+import { mainnet, sepolia } from 'wagmi/chains';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || '';
+
+const metadata = {
+  name: 'AndeChain Nexus',
+  description: 'Enterprise-grade Web3 DeFi Application',
+  url: 'https://web3modal.com',
+  icons: ['https://avatars.githubusercontent.com/u/37784886'],
+};
+
+const chains = [mainnet, sepolia] as const;
+
+const wagmiConfig = createConfig({
+  chains,
+  transports: {
+    [mainnet.id]: http(),
+    [sepolia.id]: http(),
+  },
+  ssr: true,
+});
+
+createWeb3Modal({
+  wagmiConfig,
+  projectId,
+  metadata,
+});
+
+const queryClient = new QueryClient();
+
+export function Web3Provider({ children }: { children: React.ReactNode }) {
+  return (
+    <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+            {children}
+        </QueryClientProvider>
+    </WagmiProvider>
+  );
+}

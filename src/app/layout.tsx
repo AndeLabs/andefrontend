@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { Web3Provider } from '@/lib/web3-provider';
 
 export const metadata: Metadata = {
   title: 'AndeChain Nexus',
@@ -23,7 +24,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <Web3Provider>
+            {children}
+        </Web3Provider>
         <Toaster />
       </body>
     </html>

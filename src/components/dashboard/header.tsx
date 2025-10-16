@@ -39,8 +39,11 @@ import { Icons } from "../icons";
 import { ThemeToggle } from "../theme-toggle";
 import { AppSidebar } from "./sidebar";
 import { SidebarTrigger } from "../ui/sidebar";
+import { useWeb3Modal } from "@web3modal/wagmi/react";
 
 export function DashboardHeader() {
+  const { open } = useWeb3Modal();
+
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
       <SidebarTrigger className="md:hidden" />
@@ -49,7 +52,7 @@ export function DashboardHeader() {
         {/* Can add breadcrumbs or search here */}
       </div>
 
-      <Button variant="outline" size="icon" className="h-8 w-8">
+      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => open()}>
         <Wallet className="h-4 w-4" />
         <span className="sr-only">Connect Wallet</span>
       </Button>
