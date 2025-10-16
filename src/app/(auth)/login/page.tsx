@@ -48,10 +48,11 @@ export default function LoginPage() {
   }, [user, isUserLoading, router]);
   
   const createUserProfile = (user: User) => {
+    if (!firestore) return;
     const userProfileRef = doc(firestore, `users/${user.uid}/profile`);
     const userProfileData = {
-        name: user.displayName || user.email || user.uid,
-        avatar: user.photoURL || '',
+        name: user.displayName || user.email?.split('@')[0] || 'Anonymous User',
+        avatar: user.photoURL || `https://api.dicebear.com/8.x/bottts/svg?seed=${user.uid}`,
         preferences: '{}',
         walletAddresses: user.providerData.some(p => p.providerId === 'siwe') ? [user.uid] : [],
     };
@@ -72,6 +73,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth) return;
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -87,8 +89,9 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
+  const handleProviderSignIn = async (provider: GoogleAuthProvider | GithubAuthProvider) => {
+    if (!auth) return;
+    setIsLoading(true);
     try {
       const result = await signInWithPopup(auth, provider);
       createUserProfile(result.user);
@@ -96,34 +99,25 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Google Sign-In Failed",
+        title: "Sign-In Failed",
         description: error.message,
       });
-    }
-  };
-  
-  const handleGitHubSignIn = async () => {
-    const provider = new GithubAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      createUserProfile(result.user);
-       // Redirect will be handled by the useEffect
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "GitHub Sign-In Failed",
-        description: error.message,
-      });
+    } finally {
+        setIsLoading(false);
     }
   };
 
   const handleSiweSignIn = async () => {
+    if (!auth || !address || !chainId) {
+        toast({
+            variant: "destructive",
+            title: "Wallet Not Connected",
+            description: "Please connect your wallet before signing in with Ethereum.",
+        });
+        return;
+    }
     setIsLoading(true);
     try {
-      if (!address || !chainId) {
-        throw new Error('Please connect your wallet first.');
-      }
-      
       // 1. Get nonce from server
       const nonce = await getNonce();
 
@@ -234,13 +228,15 @@ export default function LoginPage() {
             </div>
           </div>
            <Button variant="outline" className="w-full" onClick={handleSiweSignIn} disabled={isLoading || !address}>
-            <Icons.logo className="mr-2 h-4 w-4" />
+            <Icons.ethereum className="mr-2 h-4 w-4" />
             Sign in with Ethereum
           </Button>
-          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
+          <Button variant="outline" className="w-full" onClick={() => handleProviderSignIn(new GoogleAuthProvider())} disabled={isLoading}>
+             <Icons.google className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>
-           <Button variant="outline" className="w-full" onClick={handleGitHubSignIn} disabled={isLoading}>
+           <Button variant="outline" className="w-full" onClick={() => handleProviderSignIn(new GithubAuthProvider())} disabled={isLoading}>
+            <Icons.gitHub className="mr-2 h-4 w-4" />
             Sign in with GitHub
           </Button>
           <p className="px-8 text-center text-sm text-muted-foreground">
