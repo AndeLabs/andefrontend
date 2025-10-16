@@ -4,8 +4,13 @@ import { createWeb3Modal } from '@web3modal/wagmi/react';
 import { WagmiProvider, createConfig, http } from 'wagmi';
 import { mainnet, sepolia } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { andechanTestnet } from './chains';
 
-const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || '';
+const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID;
+
+if (!projectId) {
+  console.error('NEXT_PUBLIC_WC_PROJECT_ID is not set. Please set it in your environment variables.');
+}
 
 const metadata = {
   name: 'AndeChain Nexus',
@@ -14,22 +19,26 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/37784886'],
 };
 
-const chains = [mainnet, sepolia] as const;
+const chains = [andechanTestnet, mainnet, sepolia] as const;
 
 const wagmiConfig = createConfig({
   chains,
   transports: {
+    [andechanTestnet.id]: http(),
     [mainnet.id]: http(),
     [sepolia.id]: http(),
   },
   ssr: true,
 });
 
-createWeb3Modal({
-  wagmiConfig,
-  projectId,
-  metadata,
-});
+if (projectId) {
+    createWeb3Modal({
+      wagmiConfig,
+      projectId,
+      metadata,
+      defaultChain: andechanTestnet
+    });
+}
 
 const queryClient = new QueryClient();
 

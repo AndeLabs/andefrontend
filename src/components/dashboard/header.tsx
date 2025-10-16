@@ -1,26 +1,7 @@
 import Link from "next/link";
-import {
-  Bell,
-  Home,
-  LineChart,
-  Package,
-  Package2,
-  Search,
-  Settings,
-  ShoppingCart,
-  Users,
-  Wallet,
-} from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
+import { useWeb3Modal } from "@web3modal/wagmi/react";
+import { useAccount, useDisconnect } from "wagmi";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,20 +10,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Icons } from "../icons";
 import { ThemeToggle } from "../theme-toggle";
-import { AppSidebar } from "./sidebar";
 import { SidebarTrigger } from "../ui/sidebar";
-import { useWeb3Modal } from "@web3modal/wagmi/react";
+import { Wallet } from "lucide-react";
 
 export function DashboardHeader() {
   const { open } = useWeb3Modal();
+  const { address, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
+
+  const formatAddress = (addr: string) => {
+    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+  }
 
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
@@ -52,10 +31,26 @@ export function DashboardHeader() {
         {/* Can add breadcrumbs or search here */}
       </div>
 
-      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => open()}>
-        <Wallet className="h-4 w-4" />
-        <span className="sr-only">Connect Wallet</span>
-      </Button>
+      {isConnected && address ? (
+         <DropdownMenu>
+         <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Wallet className="h-4 w-4 mr-2" />
+            <span>{formatAddress(address)}</span>
+          </Button>
+         </DropdownMenuTrigger>
+         <DropdownMenuContent align="end">
+           <DropdownMenuItem onClick={() => disconnect()}>
+             Disconnect
+           </DropdownMenuItem>
+         </DropdownMenuContent>
+       </DropdownMenu>
+      ) : (
+        <Button variant="outline" className="h-9" onClick={() => open()}>
+          <Wallet className="h-4 w-4 mr-2" />
+          <span className="text-sm">Connect Wallet</span>
+        </Button>
+      )}
 
       <ThemeToggle />
 
@@ -78,7 +73,9 @@ export function DashboardHeader() {
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Logout</DropdownMenuItem>
+           <DropdownMenuItem asChild>
+            <Link href="/login">Logout</Link>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
