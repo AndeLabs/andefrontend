@@ -43,7 +43,7 @@ function BalanceCardComponent({ title, balance, usdValue, change, icon, isLoadin
             <p className="text-xs text-muted-foreground">{usdValue}</p>
         )}
         
-        {change && (
+        {change && !isLoading && (
             <div className="flex items-center gap-2 text-xs mt-2">
                 <span className={`flex items-center gap-1 font-medium ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                     <ArrowUpRight className={`h-4 w-4 ${!isPositive && 'transform rotate-180'}`} />
