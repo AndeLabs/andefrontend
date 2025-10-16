@@ -237,10 +237,10 @@ export default function LoginPage() {
             <Icons.logo className="mr-2 h-4 w-4" />
             Sign in with Ethereum
           </Button>
-          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
             Sign in with Google
           </Button>
-           <Button variant="outline" className="w-full" onClick={handleGitHubSignIn}>
+           <Button variant="outline" className="w-full" onClick={handleGitHubSignIn} disabled={isLoading}>
             Sign in with GitHub
           </Button>
           <p className="px-8 text-center text-sm text-muted-foreground">
