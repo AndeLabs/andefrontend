@@ -40,7 +40,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2">
-          <Icons.logo className="w-7 h-7 text-primary" />
+          <Icons.logo className="w-7 h-7 text-accent" />
           <span className="font-bold text-lg group-data-[collapsible=icon]:hidden">
             AndeChain
           </span>

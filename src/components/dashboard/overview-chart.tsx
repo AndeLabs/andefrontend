@@ -76,12 +76,12 @@ export function OverviewChart() {
               tickFormatter={(value) => `$${(value / 1000)}k`}
             />
             <Tooltip
-                cursor={{ fill: 'hsl(var(--accent))', radius: 8 }}
+                cursor={{ fill: 'hsl(var(--secondary))', radius: 8 }}
                 content={<ChartTooltipContent
                     formatter={(value) => `$${(value as number).toLocaleString()}`}
                  />}
              />
-            <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="total" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>
