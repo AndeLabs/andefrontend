@@ -47,11 +47,12 @@ export function useWalletConnection(): UseWalletConnectionReturn {
   const connectors = useConnectors();
   const { toast } = useToast();
   
-  const [state, setState] = useState<WalletConnectionState>('disconnected');
-  const [error, setError] = useState<Error | undefined>();
-  const switchAttemptRef = useRef(false);
-  const connectionTimeoutRef = useRef<NodeJS.Timeout>();
-  const eagerConnectionAttemptedRef = useRef(false);
+   const [state, setState] = useState<WalletConnectionState>('disconnected');
+   const [error, setError] = useState<Error | undefined>();
+   const switchAttemptRef = useRef(false);
+   const connectionTimeoutRef = useRef<NodeJS.Timeout>();
+   const eagerConnectionAttemptedRef = useRef(false);
+   const connectionInProgressRef = useRef(false);
 
   // Determinar estado actual
   useEffect(() => {
@@ -79,13 +80,13 @@ export function useWalletConnection(): UseWalletConnectionReturn {
     }
   }, [isConnected, isConnecting, isSwitching, chain, error, connectError, address]);
 
-  // Eager connection: Intentar reconectar automáticamente si estaba conectado previamente
-  useEffect(() => {
-    if (eagerConnectionAttemptedRef.current || isConnected || isConnecting) {
-      return;
-    }
+   // Eager connection: Intentar reconectar automáticamente si estaba conectado previamente
+   useEffect(() => {
+     if (eagerConnectionAttemptedRef.current || isConnected || isConnecting || connectionInProgressRef.current) {
+       return;
+     }
 
-    eagerConnectionAttemptedRef.current = true;
+     eagerConnectionAttemptedRef.current = true;
 
     // Verificar si había una conexión previa
     if (typeof window !== 'undefined') {
@@ -196,18 +197,30 @@ export function useWalletConnection(): UseWalletConnectionReturn {
      }
    }, [switchChain, toast]);
 
-   // Función de conexión mejorada
-   const connect = useCallback(async (connectorId?: string) => {
-     try {
-       setError(undefined);
-       
-       // Log de diagnóstico: información de AndeChain
-       logger.info('Attempting wallet connection', {
-         chainId: andechain.id,
-         chainName: andechain.name,
-         rpcUrl: andechain.rpcUrls.default.http[0],
-         isLocalChain: process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true',
-       });
+    // Función de conexión mejorada
+    const connect = useCallback(async (connectorId?: string) => {
+      // Prevenir conexiones duplicadas
+      if (connectionInProgressRef.current) {
+        logger.warn('Connection already in progress, ignoring duplicate request', {
+          timestamp: Date.now(),
+        });
+        return;
+      }
+
+      connectionInProgressRef.current = true;
+
+      try {
+        setError(undefined);
+        
+        // Log de diagnóstico: información de AndeChain
+        logger.info('Attempting wallet connection', {
+          chainId: andechain.id,
+          chainName: andechain.name,
+          rpcUrl: andechain.rpcUrls.default.http[0],
+          isLocalChain: process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true',
+          connectorId,
+          timestamp: Date.now(),
+        });
        
        // Buscar conector - prioridad a MetaMask (injected)
        const connector = connectorId 
@@ -236,50 +249,54 @@ export function useWalletConnection(): UseWalletConnectionReturn {
          chainId: andechain.id,
        });
        
-     } catch (err: any) {
-       logger.error('Connection error:', {
-         message: err?.message,
-         code: err?.code,
-         chainId: andechain.id,
-         rpcUrl: andechain.rpcUrls.default.http[0],
-       });
-       setError(err);
-       
-       // Manejo de errores específicos
-       if (err.message?.includes('MetaMask not installed')) {
-         toast({
-           variant: 'destructive',
-           title: 'MetaMask Not Installed',
-           description: 'Please install MetaMask to continue.',
-         });
-         // Abrir descarga en nueva pestaña
-         window.open('https://metamask.io/download/', '_blank');
-       } else if (err.code === 4001) {
-         toast({
-           title: 'Connection Rejected',
-           description: 'You rejected the connection request.',
-         });
-       } else if (err.message?.includes('Connector already connected')) {
-         // Ya está conectado, intentar switch
-         await switchToAndeChain();
-       } else if (err.message?.includes('AndeChain Local')) {
-         // Error específico de conexión a AndeChain Local
-         toast({
-           variant: 'destructive',
-           title: 'Cannot Connect to AndeChain Local',
-           description: 'Make sure the local node is running on http://localhost:8545',
-         });
-       } else {
-         toast({
-           variant: 'destructive',
-           title: 'Connection Failed',
-           description: err.message || 'Failed to connect wallet',
-         });
-       }
-       
-       throw err;
-     }
-   }, [connectors, wagmiConnect, toast, switchToAndeChain]);
+      } catch (err: any) {
+        logger.error('Connection error:', {
+          message: err?.message,
+          code: err?.code,
+          chainId: andechain.id,
+          rpcUrl: andechain.rpcUrls.default.http[0],
+          timestamp: Date.now(),
+        });
+        setError(err);
+        
+        // Manejo de errores específicos
+        if (err.message?.includes('MetaMask not installed')) {
+          toast({
+            variant: 'destructive',
+            title: 'MetaMask Not Installed',
+            description: 'Please install MetaMask to continue.',
+          });
+          // Abrir descarga en nueva pestaña
+          window.open('https://metamask.io/download/', '_blank');
+        } else if (err.code === 4001) {
+          toast({
+            title: 'Connection Rejected',
+            description: 'You rejected the connection request.',
+          });
+        } else if (err.message?.includes('Connector already connected')) {
+          // Ya está conectado, intentar switch
+          await switchToAndeChain();
+        } else if (err.message?.includes('AndeChain Local')) {
+          // Error específico de conexión a AndeChain Local
+          toast({
+            variant: 'destructive',
+            title: 'Cannot Connect to AndeChain Local',
+            description: 'Make sure the local node is running on http://localhost:8545',
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Connection Failed',
+            description: err.message || 'Failed to connect wallet',
+          });
+        }
+        
+        throw err;
+      } finally {
+        // Siempre resetear el flag de conexión en progreso
+        connectionInProgressRef.current = false;
+      }
+    }, [connectors, wagmiConnect, toast, switchToAndeChain]);
 
   // Función de desconexión mejorada
   const disconnect = useCallback(() => {

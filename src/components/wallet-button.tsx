@@ -4,6 +4,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useWalletConnection } from '@/hooks/use-wallet-connection';
 import { useBalance } from 'wagmi';
 import { formatUnits } from 'viem';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -81,9 +82,10 @@ export function WalletButton({
     error,
   } = useWalletConnection();
 
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
-  const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+   const { toast } = useToast();
+   const [copied, setCopied] = useState(false);
+   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+   const [isDebouncing, setIsDebouncing] = useState(false);
 
   // Obtener balance si está habilitado
   const { data: balance, isLoading: isBalanceLoading } = useBalance({
@@ -107,19 +109,32 @@ export function WalletButton({
     return value.toFixed(4);
   }, [balance]);
 
-  // Manejar conexión
-  const handleConnect = useCallback(async () => {
-    try {
-      await connect();
-      onConnected?.();
-      toast({
-        title: 'Wallet Connected',
-        description: `Connected to ${andechain.name}`,
-      });
-    } catch (err) {
-      // Error ya manejado en el hook
-    }
-  }, [connect, onConnected, toast]);
+   // Manejar conexión con debouncing para prevenir double-click
+   const handleConnect = useCallback(async () => {
+     // Prevenir múltiples clics rápidos
+     if (isDebouncing) {
+       logger.warn('Connect button debounced - ignoring rapid click', {
+         timestamp: Date.now(),
+       });
+       return;
+     }
+
+     setIsDebouncing(true);
+
+     try {
+       await connect();
+       onConnected?.();
+       toast({
+         title: 'Wallet Connected',
+         description: `Connected to ${andechain.name}`,
+       });
+     } catch (err) {
+       // Error ya manejado en el hook
+     } finally {
+       // Cooldown de 2 segundos para prevenir clics rápidos
+       setTimeout(() => setIsDebouncing(false), 2000);
+     }
+   }, [connect, onConnected, toast, isDebouncing]);
 
   // Manejar desconexión
   const handleDisconnect = useCallback(() => {
@@ -362,17 +377,17 @@ export function WalletButton({
     );
   }
 
-  // ============================================================================
-  // ESTADO: CONECTANDO O DESCONECTADO
-  // ============================================================================
-  return (
-    <Button
-      variant={variant}
-      size={size}
-      onClick={handleConnect}
-      disabled={isLoading}
-      className={cn('gap-2', className)}
-    >
+   // ============================================================================
+   // ESTADO: CONECTANDO O DESCONECTADO
+   // ============================================================================
+   return (
+     <Button
+       variant={variant}
+       size={size}
+       onClick={handleConnect}
+       disabled={isLoading || isDebouncing}
+       className={cn('gap-2', className)}
+     >
       {isLoading ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
