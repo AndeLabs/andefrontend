@@ -6,6 +6,15 @@ import { useToast } from '@/hooks/use-toast';
 import { andechain } from '@/lib/chains';
 import { logger } from '@/lib/logger';
 
+// Tipos para detección de conflictos
+interface WalletConflictInfo {
+  hasMetaMask: boolean;
+  hasOtherWallets: boolean;
+  hasMultipleProviders: boolean;
+  ethereumProvider?: string;
+  web3Provider?: string;
+}
+
 export type WalletConnectionState = 
   | 'disconnected'
   | 'connecting'
@@ -32,89 +41,117 @@ export interface UseWalletConnectionReturn {
   isLoading: boolean;
 }
 
-// Storage keys para persistencia
-const STORAGE_KEYS = {
-  WALLET_CONNECTED: 'andechain-wallet-connected',
-  WALLET_ADDRESS: 'andechain-wallet-address',
-  WALLET_CONNECTOR: 'andechain-wallet-connector',
-} as const;
+/**
+ * NOTA: Wagmi maneja automáticamente la persistencia de sesión
+ * 
+ * ✅ Wagmi persiste automáticamente:
+ * - Estado de conexión (connected/disconnected)
+ * - Último conector usado (injected/walletConnect/etc)
+ * - Caché de datos
+ * 
+ * ❌ NO usamos localStorage manual para evitar:
+ * - Conflictos con la persistencia de Wagmi
+ * - QuotaExceededError por datos duplicados
+ * - Sincronización de estado incorrecta
+ */
 
 export function useWalletConnection(): UseWalletConnectionReturn {
-  const { address, isConnected, chain } = useAccount();
-  const { connect: wagmiConnect, isPending: isConnecting, error: connectError } = useConnect();
-  const { disconnect: wagmiDisconnect } = useDisconnect();
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
-  const connectors = useConnectors();
-  const { toast } = useToast();
-  
-   const [state, setState] = useState<WalletConnectionState>('disconnected');
-   const [error, setError] = useState<Error | undefined>();
-   const switchAttemptRef = useRef(false);
-   const connectionTimeoutRef = useRef<NodeJS.Timeout>();
-   const eagerConnectionAttemptedRef = useRef(false);
-   const connectionInProgressRef = useRef(false);
+   const { address, isConnected, chain } = useAccount();
+   const { connect: wagmiConnect, isPending: isConnecting, error: connectError } = useConnect();
+   const { disconnect: wagmiDisconnect } = useDisconnect();
+   const { switchChain, isPending: isSwitching } = useSwitchChain();
+   const connectors = useConnectors();
+   const { toast } = useToast();
+   
+    const [state, setState] = useState<WalletConnectionState>('disconnected');
+    const [error, setError] = useState<Error | undefined>();
+    const switchAttemptRef = useRef(false);
+    const connectionTimeoutRef = useRef<NodeJS.Timeout>();
+    const eagerConnectionAttemptedRef = useRef(false);
+    const connectionInProgressRef = useRef(false);
+    const connectionIdRef = useRef<string | null>(null);
+    const walletConflictDetectedRef = useRef(false);
 
-  // Determinar estado actual
-  useEffect(() => {
-    if (isConnecting) {
-      setState('connecting');
-    } else if (isSwitching) {
-      setState('switching-network');
-    } else if (isConnected && chain) {
-      if (chain.id === andechain.id) {
-        setState('connected');
-        // Guardar estado de conexión exitosa
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEYS.WALLET_CONNECTED, 'true');
-          if (address) {
-            localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, address);
-          }
-        }
-      } else {
-        setState('wrong-network');
-      }
-    } else if (error || connectError) {
-      setState('error');
-    } else {
-      setState('disconnected');
-    }
-  }, [isConnected, isConnecting, isSwitching, chain, error, connectError, address]);
-
-   // Eager connection: Intentar reconectar automáticamente si estaba conectado previamente
-   useEffect(() => {
-     if (eagerConnectionAttemptedRef.current || isConnected || isConnecting || connectionInProgressRef.current) {
-       return;
+   // Función para detectar conflictos de wallets
+   const detectWalletConflicts = useCallback((): WalletConflictInfo => {
+     if (typeof window === 'undefined') {
+       return {
+         hasMetaMask: false,
+         hasOtherWallets: false,
+         hasMultipleProviders: false,
+       };
      }
 
-     eagerConnectionAttemptedRef.current = true;
+     const hasMetaMask = !!window.ethereum?.isMetaMask;
+     const hasOtherWallets = !!window.ethereum && !window.ethereum.isMetaMask;
+     const hasMultipleProviders = !!(window.ethereum && (window as any).web3);
 
-    // Verificar si había una conexión previa
-    if (typeof window !== 'undefined') {
-      const wasConnected = localStorage.getItem(STORAGE_KEYS.WALLET_CONNECTED) === 'true';
-      const savedConnectorId = localStorage.getItem(STORAGE_KEYS.WALLET_CONNECTOR);
+     const conflictInfo: WalletConflictInfo = {
+       hasMetaMask,
+       hasOtherWallets,
+       hasMultipleProviders,
+       ethereumProvider: window.ethereum?.constructor?.name,
+       web3Provider: (window as any).web3?.constructor?.name,
+     };
 
-      if (wasConnected) {
-        logger.info('Attempting eager connection with saved connector', {
-          connectorId: savedConnectorId,
-        });
+     // Solo mostrar warning una vez
+     if ((hasOtherWallets || hasMultipleProviders) && !walletConflictDetectedRef.current) {
+       walletConflictDetectedRef.current = true;
+       logger.warn('Multiple wallet extensions detected', conflictInfo);
+       toast({
+         variant: 'destructive',
+         title: 'Multiple Wallet Extensions Detected',
+         description: 'Please disable other wallet extensions and keep only MetaMask for best experience.',
+         duration: 10000,
+       });
+     }
 
-        // Intentar reconectar con el conector guardado o MetaMask por defecto
-        const targetConnectorId = savedConnectorId || 'injected';
-        const connector = connectors.find(c => c.id === targetConnectorId);
+     return conflictInfo;
+   }, [toast]);
 
-        if (connector) {
-          try {
-            wagmiConnect({ connector });
-          } catch (err: any) {
-            logger.warn('Eager connection failed', { error: err?.message });
-            // Limpiar estado si falla
-            localStorage.removeItem(STORAGE_KEYS.WALLET_CONNECTED);
-            localStorage.removeItem(STORAGE_KEYS.WALLET_CONNECTOR);
-          }
-        }
+    // Determinar estado actual
+    useEffect(() => {
+     if (isConnecting) {
+       setState('connecting');
+     } else if (isSwitching) {
+       setState('switching-network');
+     } else if (isConnected && chain) {
+       if (chain.id === andechain.id) {
+         setState('connected');
+         // ✅ Wagmi maneja automáticamente la persistencia
+         // No necesitamos guardar en localStorage
+       } else {
+         setState('wrong-network');
+       }
+     } else if (error || connectError) {
+       setState('error');
+     } else {
+       setState('disconnected');
+     }
+   }, [isConnected, isConnecting, isSwitching, chain, error, connectError, address]);
+
+    // Eager connection: Wagmi maneja automáticamente la reconexión
+    // Solo necesitamos verificar que se intente una sola vez
+    useEffect(() => {
+      if (eagerConnectionAttemptedRef.current || isConnected || isConnecting || connectionInProgressRef.current) {
+        return;
       }
-    }
-  }, [isConnected, isConnecting, connectors, wagmiConnect]);
+
+      eagerConnectionAttemptedRef.current = true;
+
+      // ✅ Wagmi intentará reconectar automáticamente usando su persistencia
+      // Solo necesitamos esperar a que Wagmi complete el intento
+      if (typeof window !== 'undefined') {
+        logger.info('Eager connection: Wagmi will attempt to reconnect using persisted state');
+        
+        // Esperar un poco para que Wagmi intente la reconexión
+        setTimeout(() => {
+          if (!isConnected && !isConnecting) {
+            logger.info('No persisted connection found or reconnection failed');
+          }
+        }, 1000);
+      }
+   }, [isConnected, isConnecting]);
 
 
 
@@ -197,140 +234,177 @@ export function useWalletConnection(): UseWalletConnectionReturn {
      }
    }, [switchChain, toast]);
 
-    // Función de conexión mejorada
-    const connect = useCallback(async (connectorId?: string) => {
-      // Prevenir conexiones duplicadas
-      if (connectionInProgressRef.current) {
-        logger.warn('Connection already in progress, ignoring duplicate request', {
-          timestamp: Date.now(),
-        });
-        return;
-      }
+     // Función de conexión mejorada con prevención de duplicados robusta
+     const connect = useCallback(async (connectorId?: string) => {
+       // Generar ID único para esta conexión
+       const connectionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+       connectionIdRef.current = connectionId;
 
-      connectionInProgressRef.current = true;
+       // Prevenir conexiones duplicadas
+       if (connectionInProgressRef.current) {
+         logger.warn('Connection already in progress, ignoring duplicate request', {
+           currentConnectionId: connectionIdRef.current,
+           attemptedConnectionId: connectionId,
+           timestamp: Date.now(),
+         });
+         return;
+       }
 
-      try {
-        setError(undefined);
+       connectionInProgressRef.current = true;
+
+       try {
+         setError(undefined);
+         
+         // Detectar conflictos de wallets
+         const conflictInfo = detectWalletConflicts();
+         
+         // Log de diagnóstico: información de AndeChain
+         logger.info('Attempting wallet connection', {
+           connectionId,
+           chainId: andechain.id,
+           chainName: andechain.name,
+           rpcUrl: andechain.rpcUrls.default.http[0],
+           isLocalChain: process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true',
+           connectorId,
+           walletConflicts: conflictInfo,
+           timestamp: Date.now(),
+         });
         
-        // Log de diagnóstico: información de AndeChain
-        logger.info('Attempting wallet connection', {
-          chainId: andechain.id,
-          chainName: andechain.name,
-          rpcUrl: andechain.rpcUrls.default.http[0],
-          isLocalChain: process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true',
-          connectorId,
-          timestamp: Date.now(),
-        });
-       
-       // Buscar conector - prioridad a MetaMask (injected)
-       const connector = connectorId 
-         ? connectors.find(c => c.id === connectorId)
-         : connectors.find(c => c.id === 'injected') || 
-           connectors.find(c => c.name.toLowerCase().includes('metamask'));
+        // Buscar conector - prioridad a MetaMask (injected)
+        const connector = connectorId 
+          ? connectors.find(c => c.id === connectorId)
+          : connectors.find(c => c.id === 'injected') || 
+            connectors.find(c => c.name.toLowerCase().includes('metamask'));
 
-       if (!connector) {
-         throw new Error('No wallet connector found');
-       }
-
-       // Verificar si MetaMask está instalado (solo para injected)
-       if (connector.id === 'injected' && typeof window !== 'undefined' && !window.ethereum) {
-         throw new Error('MetaMask not installed');
-       }
-
-       await wagmiConnect({ connector });
-       
-       // Guardar conector usado para reconexión futura
-       if (typeof window !== 'undefined') {
-         localStorage.setItem(STORAGE_KEYS.WALLET_CONNECTOR, connector.id);
-       }
-       
-       logger.info('Wallet connected successfully', { 
-         connectorId: connector.id,
-         chainId: andechain.id,
-       });
-       
-      } catch (err: any) {
-        logger.error('Connection error:', {
-          message: err?.message,
-          code: err?.code,
-          chainId: andechain.id,
-          rpcUrl: andechain.rpcUrls.default.http[0],
-          timestamp: Date.now(),
-        });
-        setError(err);
-        
-        // Manejo de errores específicos
-        if (err.message?.includes('MetaMask not installed')) {
-          toast({
-            variant: 'destructive',
-            title: 'MetaMask Not Installed',
-            description: 'Please install MetaMask to continue.',
-          });
-          // Abrir descarga en nueva pestaña
-          window.open('https://metamask.io/download/', '_blank');
-        } else if (err.code === 4001) {
-          toast({
-            title: 'Connection Rejected',
-            description: 'You rejected the connection request.',
-          });
-        } else if (err.message?.includes('Connector already connected')) {
-          // Ya está conectado, intentar switch
-          await switchToAndeChain();
-        } else if (err.message?.includes('AndeChain Local')) {
-          // Error específico de conexión a AndeChain Local
-          toast({
-            variant: 'destructive',
-            title: 'Cannot Connect to AndeChain Local',
-            description: 'Make sure the local node is running on http://localhost:8545',
-          });
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Connection Failed',
-            description: err.message || 'Failed to connect wallet',
-          });
+        if (!connector) {
+          throw new Error('No wallet connector found');
         }
+
+        // Verificar si MetaMask está instalado (solo para injected)
+        if (connector.id === 'injected' && typeof window !== 'undefined' && !window.ethereum) {
+          throw new Error('MetaMask not installed');
+        }
+
+        // Verificar que el connectionId no cambió durante la espera
+        if (connectionIdRef.current !== connectionId) {
+          logger.warn('Connection ID changed, aborting stale connection', {
+            expectedId: connectionId,
+            currentId: connectionIdRef.current,
+          });
+          return;
+        }
+
+         await wagmiConnect({ connector });
+         
+         // ✅ Wagmi maneja automáticamente la persistencia del conector
+         // No necesitamos guardar en localStorage
+         
+         logger.info('Wallet connected successfully', { 
+           connectionId,
+           connectorId: connector.id,
+           chainId: andechain.id,
+         });
         
-        throw err;
-      } finally {
-        // Siempre resetear el flag de conexión en progreso
-        connectionInProgressRef.current = false;
-      }
-    }, [connectors, wagmiConnect, toast, switchToAndeChain]);
+       } catch (err: any) {
+         logger.error('Connection error:', {
+           connectionId,
+           message: err?.message,
+           code: err?.code,
+           chainId: andechain.id,
+           rpcUrl: andechain.rpcUrls.default.http[0],
+           timestamp: Date.now(),
+         });
+         setError(err);
+         
+         // Manejo de errores específicos
+         if (err.message?.includes('MetaMask not installed')) {
+           toast({
+             variant: 'destructive',
+             title: 'MetaMask Not Installed',
+             description: 'Please install MetaMask to continue.',
+           });
+           // Abrir descarga en nueva pestaña
+           window.open('https://metamask.io/download/', '_blank');
+         } else if (err.code === 4001) {
+           toast({
+             title: 'Connection Rejected',
+             description: 'You rejected the connection request.',
+           });
+         } else if (err.message?.includes('Connector already connected')) {
+           // Ya está conectado, intentar switch
+           await switchToAndeChain();
+         } else if (err.message?.includes('AndeChain Local')) {
+           // Error específico de conexión a AndeChain Local
+           toast({
+             variant: 'destructive',
+             title: 'Cannot Connect to AndeChain Local',
+             description: 'Make sure the local node is running on http://localhost:8545',
+           });
+         } else if (err.message?.includes('already pending')) {
+           // Error de solicitud duplicada de MetaMask
+           toast({
+             variant: 'destructive',
+             title: 'Request Already Pending',
+             description: 'A wallet request is already in progress. Please wait or try again.',
+           });
+         } else {
+           toast({
+             variant: 'destructive',
+             title: 'Connection Failed',
+             description: err.message || 'Failed to connect wallet',
+           });
+         }
+         
+         throw err;
+       } finally {
+         // Solo resetear si es el mismo connectionId
+         if (connectionIdRef.current === connectionId) {
+           connectionInProgressRef.current = false;
+           connectionIdRef.current = null;
+         }
+       }
+     }, [connectors, wagmiConnect, toast, switchToAndeChain, detectWalletConflicts]);
 
-  // Función de desconexión mejorada
-  const disconnect = useCallback(() => {
-    wagmiDisconnect();
-    switchAttemptRef.current = false;
-    setError(undefined);
-    
-    // Limpiar localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEYS.WALLET_CONNECTED);
-      localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
-      localStorage.removeItem(STORAGE_KEYS.WALLET_CONNECTOR);
-    }
-    
-    toast({
-      title: 'Wallet Disconnected',
-      description: 'Your wallet has been disconnected.',
-    });
-    
-    logger.info('Wallet disconnected');
-  }, [wagmiDisconnect, toast]);
+   // Función de desconexión mejorada
+   const disconnect = useCallback(() => {
+     wagmiDisconnect();
+     switchAttemptRef.current = false;
+     setError(undefined);
+     
+     // ✅ Wagmi maneja automáticamente la limpieza de persistencia
+     // No necesitamos limpiar localStorage manualmente
+     
+     toast({
+       title: 'Wallet Disconnected',
+       description: 'Your wallet has been disconnected.',
+     });
+     
+     logger.info('Wallet disconnected');
+   }, [wagmiDisconnect, toast]);
 
-  // Auto-switch a AndeChain cuando se conecta a red incorrecta
-  useEffect(() => {
-    if (isConnected && chain && chain.id !== andechain.id && !switchAttemptRef.current) {
-      switchAttemptRef.current = true;
-      switchToAndeChain().finally(() => {
-        // Reset después de 5 segundos para permitir reintentos manuales
-        setTimeout(() => {
-          switchAttemptRef.current = false;
-        }, 5000);
-      });
-    }
-  }, [isConnected, chain, switchToAndeChain]);
+   // Auto-switch a AndeChain cuando se conecta a red incorrecta
+   useEffect(() => {
+     if (isConnected && chain && chain.id !== andechain.id && !switchAttemptRef.current) {
+       switchAttemptRef.current = true;
+       switchToAndeChain().finally(() => {
+         // Reset después de 5 segundos para permitir reintentos manuales
+         setTimeout(() => {
+           switchAttemptRef.current = false;
+         }, 5000);
+       });
+     }
+   }, [isConnected, chain, switchToAndeChain]);
+
+   // Cleanup cuando el componente se desmonta
+   useEffect(() => {
+     return () => {
+       connectionInProgressRef.current = false;
+       connectionIdRef.current = null;
+       if (connectionTimeoutRef.current) {
+         clearTimeout(connectionTimeoutRef.current);
+       }
+     };
+   }, []);
 
   // Agregar AndeChain a la wallet
   const addAndeChainToWallet = async () => {
