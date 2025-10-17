@@ -109,26 +109,53 @@ export function useWalletConnection(): UseWalletConnectionReturn {
      return conflictInfo;
    }, [toast]);
 
-    // Determinar estado actual
-    useEffect(() => {
-     if (isConnecting) {
-       setState('connecting');
-     } else if (isSwitching) {
-       setState('switching-network');
-     } else if (isConnected && chain) {
-       if (chain.id === andechain.id) {
-         setState('connected');
-         // ✅ Wagmi maneja automáticamente la persistencia
-         // No necesitamos guardar en localStorage
-       } else {
-         setState('wrong-network');
-       }
-     } else if (error || connectError) {
-       setState('error');
-     } else {
-       setState('disconnected');
-     }
-   }, [isConnected, isConnecting, isSwitching, chain, error, connectError, address]);
+     // Determinar estado actual
+     // IMPORTANTE: El orden de las condiciones es crítico para evitar estados inconsistentes
+     // Prioridad: Conexión exitosa > Procesos en progreso > Errores > Desconectado
+     useEffect(() => {
+      // ✅ PRIORIDAD 1: Conexión exitosa (máxima prioridad)
+      // Si está conectado, SIEMPRE mostrar estado conectado, incluso si hay errores anteriores
+      if (isConnected && chain) {
+        if (chain.id === andechain.id) {
+          setState('connected');
+          // Limpiar errores anteriores cuando la conexión es exitosa
+          setError(undefined);
+          logger.info('State set to connected', { 
+            address, 
+            chainId: chain.id,
+            clearedPreviousError: !!error || !!connectError
+          });
+        } else {
+          setState('wrong-network');
+          setError(undefined);
+          logger.info('State set to wrong-network', { 
+            chainId: chain.id, 
+            expected: andechain.id 
+          });
+        }
+      }
+      // ✅ PRIORIDAD 2: Procesos en progreso (solo si no está conectado)
+      else if (isConnecting) {
+        setState('connecting');
+        logger.info('State set to connecting');
+      } else if (isSwitching) {
+        setState('switching-network');
+        logger.info('State set to switching-network');
+      }
+      // ✅ PRIORIDAD 3: Errores (solo si no está conectado)
+      else if (error || connectError) {
+        setState('error');
+        logger.warn('State set to error', { 
+          error: error?.message, 
+          connectError: connectError?.message 
+        });
+      }
+      // ✅ PRIORIDAD 4: Desconectado
+      else {
+        setState('disconnected');
+        logger.info('State set to disconnected');
+      }
+    }, [isConnected, isConnecting, isSwitching, chain, error, connectError]);
 
     // Eager connection: Wagmi maneja automáticamente la reconexión
     // Solo necesitamos verificar que se intente una sola vez
@@ -155,30 +182,46 @@ export function useWalletConnection(): UseWalletConnectionReturn {
 
 
 
-  // Timeout para conexiones colgadas
-  useEffect(() => {
-    if (isConnecting || isSwitching) {
-      connectionTimeoutRef.current = setTimeout(() => {
-        logger.warn('Connection timeout - resetting state');
-        setError(new Error('Connection timeout. Please try again.'));
-        toast({
-          variant: 'destructive',
-          title: 'Connection Timeout',
-          description: 'The connection is taking too long. Please try again.',
-        });
-      }, 30000); // 30 segundos
-    } else {
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-      }
-    }
+   // Timeout para conexiones colgadas
+   useEffect(() => {
+     if (isConnecting || isSwitching) {
+       connectionTimeoutRef.current = setTimeout(() => {
+         logger.warn('Connection timeout - resetting state');
+         setError(new Error('Connection timeout. Please try again.'));
+         toast({
+           variant: 'destructive',
+           title: 'Connection Timeout',
+           description: 'The connection is taking too long. Please try again.',
+         });
+       }, 30000); // 30 segundos
+     } else {
+       if (connectionTimeoutRef.current) {
+         clearTimeout(connectionTimeoutRef.current);
+       }
+     }
 
-    return () => {
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-      }
-    };
-  }, [isConnecting, isSwitching, toast]);
+     return () => {
+       if (connectionTimeoutRef.current) {
+         clearTimeout(connectionTimeoutRef.current);
+       }
+     };
+   }, [isConnecting, isSwitching, toast]);
+
+   // Debugging: Monitorear cambios de estado para diagnosticar inconsistencias
+   useEffect(() => {
+     logger.info('State determination snapshot', {
+       state,
+       isConnected,
+       isConnecting,
+       isSwitching,
+       chainId: chain?.id,
+       expectedChainId: andechain.id,
+       hasError: !!error,
+       hasConnectError: !!connectError,
+       address: address?.slice(0, 6) + '...',
+       timestamp: new Date().toISOString(),
+     });
+   }, [state, isConnected, isConnecting, isSwitching, chain, error, connectError, address]);
 
    // Función de switch mejorada (definida primero para usarla en connect)
    const switchToAndeChain = useCallback(async () => {
@@ -294,16 +337,20 @@ export function useWalletConnection(): UseWalletConnectionReturn {
           return;
         }
 
-         await wagmiConnect({ connector });
-         
-         // ✅ Wagmi maneja automáticamente la persistencia del conector
-         // No necesitamos guardar en localStorage
-         
-         logger.info('Wallet connected successfully', { 
-           connectionId,
-           connectorId: connector.id,
-           chainId: andechain.id,
-         });
+          await wagmiConnect({ connector });
+          
+          // ✅ Wagmi maneja automáticamente la persistencia del conector
+          // No necesitamos guardar en localStorage
+          
+          // Limpiar errores después de conexión exitosa
+          setError(undefined);
+          
+          logger.info('Wallet connected successfully', { 
+            connectionId,
+            connectorId: connector.id,
+            chainId: andechain.id,
+            clearedError: true,
+          });
         
        } catch (err: any) {
          logger.error('Connection error:', {
