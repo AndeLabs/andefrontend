@@ -1,205 +1,694 @@
-
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useAccount, useBalance, useWaitForTransactionReceipt, useSendTransaction } from 'wagmi';
+import { parseEther, parseUnits, isAddress, encodeFunctionData, type Address, type Hash } from 'viem';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { andechain } from '@/lib/chains';
+import { useTransactionHistory } from '@/hooks/use-transaction-history';
+import { useWalletTokens } from '@/hooks/use-wallet-tokens';
+import { TokenSelector } from '@/components/transactions/token-selector';
+import { TransactionHistoryTable } from '@/components/transactions/transaction-history-table';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, PlusCircle, CheckCircle, Clock, XCircle, Landmark, Trash2 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useTransactionHistory, type Transaction } from "@/hooks/use-transaction-history";
-import { useAccount } from "wagmi";
-import { useEffect, useState } from "react";
+  ArrowRightLeft,
+  Send,
+  Eye,
+  Copy,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  Coins,
+  TrendingUp,
+  Wallet,
+  Info,
+  Zap,
+} from 'lucide-react';
+
+const ERC20_TRANSFER_ABI = [
+  {
+    type: 'function',
+    name: 'transfer',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ type: 'bool' }],
+  },
+] as const;
 
 export default function TransactionsPage() {
-  const { address } = useAccount();
-  const { transactions, addTransaction, removeTransaction, clearHistory, isLoading } = useTransactionHistory();
-  const [mounted, setMounted] = useState(false);
+  const { address, isConnected } = useAccount();
+  const { data: nativeBalance } = useBalance({ address, chainId: andechain.id });
+  const { toast } = useToast();
 
-  // Prevenir hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Transaction history
+  const {
+    transactions,
+    isLoading: isLoadingHistory,
+    addPendingTransaction,
+    updateTransactionStatus,
+    refreshTransactions,
+  } = useTransactionHistory();
 
-  const createSampleTransaction = () => {
-    if (!address) return;
+  // Token management
+  const {
+    tokens,
+    nativeBalance: nativeTokenInfo,
+    isLoading: isLoadingTokens,
+    refreshTokens,
+  } = useWalletTokens();
 
-    const types = ['Send', 'Receive', 'Staking'] as const;
-    const statuses = ['success', 'pending', 'failed'] as const;
-    
-    const sampleTx: Omit<Transaction, 'id' | 'timestamp'> = {
-      hash: "0x" + Math.random().toString(16).substr(2, 8) + "..." + Math.random().toString(16).substr(2, 8),
-      type: types[Math.floor(Math.random() * types.length)],
-      value: `${(Math.random() * 100).toFixed(2)} ANDE`,
-      from: address.substring(0, 6) + "..." + address.substring(address.length - 4),
-      to: "0x" + Math.random().toString(16).substr(2, 3) + "..." + Math.random().toString(16).substr(2, 3),
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-    };
-    
-    addTransaction(sampleTx);
-  };
-
-  const formatDate = (timestamp: number) => {
-    if (!timestamp) return '...';
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getStatusBadge = (status: Transaction['status']) => {
-    switch (status) {
-      case 'success':
-        return <Badge variant="secondary" className="bg-green-600/10 text-green-400 border-green-400/20"><CheckCircle className="mr-1 h-3 w-3" />Success</Badge>;
-      case 'pending':
-        return <Badge variant="secondary" className="bg-yellow-600/10 text-yellow-400 border-yellow-400/20"><Clock className="mr-1 h-3 w-3" />Pending</Badge>;
-      case 'failed':
-        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Failed</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
+  // Send form state
+  const [selectedToken, setSelectedToken] = useState<any>(null);
+  const [sendToAddress, setSendToAddress] = useState('');
+  const [sendAmount, setSendAmount] = useState('');
+  const [sendData, setSendData] = useState('');
+  const [estimatedGas, setEstimatedGas] = useState<string>('');
   
-  const getTypeIcon = (type: Transaction['type']) => {
-    switch (type) {
-      case "Send":
-        return (
-          <span className="p-1.5 bg-red-500/10 rounded-full">
-            <ArrowUpRight className="h-4 w-4 text-red-400" />
-          </span>
-        );
-      case "Receive":
-        return (
-          <span className="p-1.5 bg-green-500/10 rounded-full">
-            <ArrowDownLeft className="h-4 w-4 text-green-400" />
-          </span>
-        );
-      case "Staking":
-        return (
-          <span className="p-1.5 bg-blue-500/10 rounded-full">
-            <Landmark className="h-4 w-4 text-blue-400" />
-          </span>
-        );
-      default:
-        return null;
+  // Transaction tracking
+  const [pendingTxHash, setPendingTxHash] = useState<Hash | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Send transaction hooks
+  const {
+    data: hash,
+    isPending: isSending,
+    error: sendError,
+    sendTransaction,
+  } = useSendTransaction();
+
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    error: confirmError,
+  } = useWaitForTransactionReceipt({
+    hash: pendingTxHash || undefined,
+  });
+
+  // Initialize with native token
+  useEffect(() => {
+    if (nativeTokenInfo && !selectedToken) {
+      setSelectedToken(nativeTokenInfo);
+    }
+  }, [nativeTokenInfo, selectedToken]);
+
+  // Track transaction hash
+  useEffect(() => {
+    if (hash) {
+      setPendingTxHash(hash);
+      
+      // Add to pending transactions
+      addPendingTransaction({
+        hash,
+        to: sendToAddress as Address,
+        value: parseEther(sendAmount || '0'),
+      });
+
+      const explorerLink = andechain.blockExplorers?.default?.url;
+      
+      toast({
+        title: '🚀 Transaction Submitted',
+        description: (
+          <div className="space-y-2">
+            <p>Your transaction has been submitted to the network</p>
+            <code className="text-xs bg-muted px-2 py-1 rounded">{hash.slice(0, 20)}...{hash.slice(-10)}</code>
+            {explorerLink && (
+              <a
+                href={`${explorerLink}/tx/${hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1 mt-2"
+              >
+                View on Explorer →
+              </a>
+            )}
+          </div>
+        ),
+        duration: 10000,
+      });
+    }
+  }, [hash, addPendingTransaction, sendToAddress, sendAmount, toast]);
+
+  // Handle confirmation
+  useEffect(() => {
+    if (isConfirmed && pendingTxHash) {
+      setShowSuccess(true);
+      updateTransactionStatus(pendingTxHash);
+      
+      const explorerLink = andechain.blockExplorers?.default?.url;
+      
+      toast({
+        title: '✅ Transaction Confirmed',
+        description: (
+          <div className="space-y-2">
+            <p>Your transaction has been confirmed on the blockchain!</p>
+            {explorerLink && (
+              <a
+                href={`${explorerLink}/tx/${pendingTxHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                View on Block Explorer →
+              </a>
+            )}
+          </div>
+        ),
+        duration: 8000,
+      });
+
+      // Reset form
+      setSendToAddress('');
+      setSendAmount('');
+      setSendData('');
+      setPendingTxHash(null);
+
+      // Refresh balances and transactions
+      setTimeout(() => {
+        refreshTokens();
+        refreshTransactions();
+        setShowSuccess(false);
+      }, 2000);
+    }
+  }, [isConfirmed, pendingTxHash, updateTransactionStatus, refreshTokens, refreshTransactions, toast]);
+
+  // Handle errors
+  useEffect(() => {
+    if (sendError) {
+      toast({
+        title: '❌ Transaction Failed',
+        description: sendError.message || 'Failed to send transaction',
+        variant: 'destructive',
+      });
+    }
+    if (confirmError) {
+      toast({
+        title: '⚠️ Confirmation Error',
+        description: confirmError.message || 'Transaction may have failed',
+        variant: 'destructive',
+      });
+    }
+  }, [sendError, confirmError, toast]);
+
+  const handleSend = async () => {
+    if (!isConnected || !address) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!sendToAddress || !isAddress(sendToAddress)) {
+      toast({
+        title: 'Invalid Address',
+        description: 'Please enter a valid recipient address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!sendAmount || parseFloat(sendAmount) <= 0) {
+      toast({
+        title: 'Invalid Amount',
+        description: 'Please enter a valid amount',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedToken) {
+      toast({
+        title: 'No Token Selected',
+        description: 'Please select a token to send',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const amountBigInt = parseUnits(sendAmount, selectedToken.decimals);
+
+      // Check balance
+      if (amountBigInt > selectedToken.balance) {
+        toast({
+          title: 'Insufficient Balance',
+          description: `You only have ${selectedToken.balanceFormatted} ${selectedToken.symbol}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Native token transfer
+      if (selectedToken.isNative) {
+        const txParams: any = {
+          to: sendToAddress as Address,
+          value: amountBigInt,
+        };
+        
+        // Only include data if it's not empty
+        if (sendData && sendData.trim() !== '' && sendData !== '0x') {
+          txParams.data = sendData.startsWith('0x') ? sendData : `0x${sendData}`;
+        }
+        
+        sendTransaction(txParams);
+      } else {
+        // ERC20 token transfer
+        sendTransaction({
+          to: selectedToken.address,
+          data: encodeFunctionData({
+            abi: ERC20_TRANSFER_ABI,
+            functionName: 'transfer',
+            args: [sendToAddress as Address, amountBigInt],
+          }) as `0x${string}`,
+        });
+      }
+    } catch (error) {
+      console.error('Send error:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to send transaction',
+        variant: 'destructive',
+      });
     }
   };
 
-  if (!mounted) {
+  const handleCopyAddress = () => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      toast({
+        title: 'Copied!',
+        description: 'Your address has been copied to clipboard',
+      });
+    }
+  };
+
+  const handleMaxAmount = () => {
+    if (selectedToken) {
+      setSendAmount(selectedToken.balanceFormatted);
+    }
+  };
+
+  const explorerUrl = andechain.blockExplorers?.default?.url;
+
+  if (!isConnected) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-64 w-full" />
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
+          <p className="text-muted-foreground mt-2">
+            Send tokens and view your transaction history
+          </p>
+        </div>
+
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Wallet Not Connected</AlertTitle>
+          <AlertDescription>
+            Please connect your wallet to send transactions and view your history.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Transaction History</CardTitle>
-          <CardDescription>
-            A log of all your recent blockchain transactions (stored locally).
-          </CardDescription>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={createSampleTransaction} variant="outline" size="sm">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Sample TX
-          </Button>
-          {transactions.length > 0 && (
-            <Button onClick={clearHistory} variant="outline" size="sm" className="text-destructive hover:text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Clear
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Type</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead className="hidden md:table-cell">From</TableHead>
-              <TableHead className="hidden md:table-cell">To</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Date</TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={7}>
-                    <Skeleton className="h-8 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-            {!isLoading && transactions && transactions.length > 0 && transactions.map((tx) => (
-              <TableRow key={tx.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {getTypeIcon(tx.type)}
-                    <span className="font-medium">{tx.type}</span>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
+        <p className="text-muted-foreground mt-2">
+          Send tokens and manage your transaction history on {andechain.name}
+        </p>
+      </div>
+
+      {/* Wallet Overview */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Your Address</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <code className="text-xs font-mono flex-1 truncate">{address}</code>
+              <Button variant="ghost" size="sm" onClick={handleCopyAddress} className="h-6 w-6 p-0">
+                <Copy className="h-3 w-3" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Native Balance</CardTitle>
+            <Coins className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {nativeBalance ? parseFloat(nativeBalance.formatted).toFixed(4) : '0.0000'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{andechain.nativeCurrency.symbol}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{transactions.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {transactions.filter(tx => tx.status === 'pending').length} pending
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Success Message */}
+      {showSuccess && (
+        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <AlertTitle className="text-green-700 dark:text-green-400">Transaction Confirmed!</AlertTitle>
+          <AlertDescription className="text-green-600 dark:text-green-500">
+            Your transaction has been successfully confirmed on the blockchain.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="send" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="send" className="gap-2">
+            <Send className="h-4 w-4" />
+            Send Transaction
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <ArrowRightLeft className="h-4 w-4" />
+            Transaction History
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Send Transaction Tab */}
+        <TabsContent value="send" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Send Transaction</CardTitle>
+                  <CardDescription>
+                    Transfer tokens to another address on the {andechain.name}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Token Selector */}
+                  <div className="space-y-2">
+                    <Label htmlFor="token">Token to Send</Label>
+                    <TokenSelector
+                      selectedToken={selectedToken}
+                      onSelectToken={setSelectedToken}
+                      disabled={isSending || isConfirming}
+                    />
+                    {selectedToken && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                        <Info className="h-4 w-4" />
+                        <span>
+                          Available: {parseFloat(selectedToken.balanceFormatted).toFixed(6)} {selectedToken.symbol}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </TableCell>
-                <TableCell>{tx.value}</TableCell>
-                <TableCell className="hidden md:table-cell font-mono text-xs">
-                  {tx.from}
-                </TableCell>
-                <TableCell className="hidden md:table-cell font-mono text-xs">
-                  {tx.to}
-                </TableCell>
-                <TableCell>
-                  {getStatusBadge(tx.status)}
-                </TableCell>
-                <TableCell className="text-right text-sm">{formatDate(tx.timestamp)}</TableCell>
-                <TableCell>
+
+                  <Separator />
+
+                  {/* Recipient Address */}
+                  <div className="space-y-2">
+                    <Label htmlFor="to">Recipient Address</Label>
+                    <Input
+                      id="to"
+                      placeholder="0x..."
+                      value={sendToAddress}
+                      onChange={(e) => setSendToAddress(e.target.value)}
+                      disabled={isSending || isConfirming}
+                      className="font-mono"
+                    />
+                    {sendToAddress && !isAddress(sendToAddress) && (
+                      <p className="text-xs text-red-500">Invalid address format</p>
+                    )}
+                  </div>
+
+                  {/* Amount */}
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="amount"
+                        type="number"
+                        step="0.000001"
+                        placeholder="0.0"
+                        value={sendAmount}
+                        onChange={(e) => setSendAmount(e.target.value)}
+                        disabled={isSending || isConfirming}
+                        className="font-mono"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={handleMaxAmount}
+                        disabled={isSending || isConfirming || !selectedToken}
+                      >
+                        Max
+                      </Button>
+                    </div>
+                    {sendAmount && selectedToken && (
+                      <p className="text-xs text-muted-foreground">
+                        ≈ {(parseFloat(sendAmount) * 1).toFixed(2)} USD (estimated)
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Optional Data */}
+                  <div className="space-y-2">
+                    <Label htmlFor="data">
+                      Transaction Data (Optional)
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        Advanced
+                      </Badge>
+                    </Label>
+                    <Textarea
+                      id="data"
+                      placeholder="0x... (hex data for contract interaction)"
+                      value={sendData}
+                      onChange={(e) => setSendData(e.target.value)}
+                      disabled={isSending || isConfirming || !selectedToken?.isNative}
+                      className="font-mono text-xs"
+                      rows={3}
+                    />
+                    {!selectedToken?.isNative && (
+                      <p className="text-xs text-muted-foreground">
+                        Transaction data only available for native token transfers
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Send Button */}
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeTransaction(tx.id)}
-                    className="h-8 w-8 p-0 hover:text-destructive"
+                    onClick={handleSend}
+                    disabled={
+                      isSending ||
+                      isConfirming ||
+                      !sendToAddress ||
+                      !sendAmount ||
+                      !selectedToken ||
+                      !isAddress(sendToAddress)
+                    }
+                    className="w-full"
+                    size="lg"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {isSending ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Sending...
+                      </>
+                    ) : isConfirming ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Confirming...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-5 w-5" />
+                        Send Transaction
+                      </>
+                    )}
                   </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {!isLoading && (!transactions || transactions.length === 0) && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
-                  No transactions found. Your transaction history will appear here.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+
+                  {/* Transaction Status */}
+                  {(isSending || isConfirming || pendingTxHash) && (
+                    <Alert>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <AlertTitle>
+                        {isSending && 'Awaiting Signature...'}
+                        {isConfirming && 'Transaction Pending...'}
+                      </AlertTitle>
+                      <AlertDescription>
+                        {isSending && 'Please confirm the transaction in your wallet'}
+                        {isConfirming && (
+                          <div className="space-y-2">
+                            <p>Your transaction is being processed on the blockchain</p>
+                            {pendingTxHash && (
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <code className="text-xs bg-muted p-1 rounded flex-1 truncate">
+                                    {pendingTxHash}
+                                  </code>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(pendingTxHash);
+                                      toast({ title: 'Copied!', description: 'Transaction hash copied to clipboard' });
+                                    }}
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                {explorerUrl && (
+                                  <a
+                                    href={`${explorerUrl}/tx/${pendingTxHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline flex items-center gap-1 font-medium"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                    View Transaction on Block Explorer
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Info Sidebar */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Transaction Info</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Network</span>
+                      <Badge variant="outline">{andechain.name}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Chain ID</span>
+                      <span className="font-mono">{andechain.id}</span>
+                    </div>
+                    {selectedToken && (
+                      <>
+                        <Separator />
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Token</span>
+                          <span className="font-semibold">{selectedToken.symbol}</span>
+                        </div>
+                        {!selectedToken.isNative && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-muted-foreground">Contract</span>
+                            <code className="text-xs bg-muted p-1 rounded break-all">
+                              {selectedToken.address}
+                            </code>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Tips
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-xs text-muted-foreground">
+                  <p>• Double-check the recipient address before sending</p>
+                  <p>• Transactions cannot be reversed once confirmed</p>
+                  <p>• Keep some ANDE for gas fees</p>
+                  <p>• Use "Max" to send your entire balance</p>
+                  <p>• ERC20 transfers require gas in ANDE</p>
+                </CardContent>
+              </Card>
+
+              {tokens.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Your Tokens</CardTitle>
+                    <CardDescription className="text-xs">
+                      {tokens.length} token{tokens.length !== 1 ? 's' : ''} detected
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={refreshTokens}
+                      disabled={isLoadingTokens}
+                      className="w-full"
+                    >
+                      <RefreshCw className={`h-3 w-3 mr-2 ${isLoadingTokens ? 'animate-spin' : ''}`} />
+                      Refresh Tokens
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Transaction History Tab */}
+        <TabsContent value="history" className="space-y-6">
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={refreshTransactions}
+              disabled={isLoadingHistory}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingHistory ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
+          <TransactionHistoryTable
+            transactions={transactions}
+            isLoading={isLoadingHistory}
+            emptyMessage="No transactions found. Send your first transaction to get started!"
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
+
