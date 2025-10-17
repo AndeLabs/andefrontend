@@ -1,45 +1,40 @@
 'use client';
 
-import { WagmiProvider, createConfig, http, createStorage } from 'wagmi';
+import { WagmiProvider, createConfig, http } from 'wagmi';
 import { mainnet, sepolia } from 'wagmi/chains';
-import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors';
+import { injected } from 'wagmi/connectors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { andechain } from './chains';
+import { cleanupLegacyStorage } from './storage-cleanup';
 
 const chains = [andechain, mainnet, sepolia] as const;
 
-// Configuración de WalletConnect (opcional)
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo-project-id';
+/**
+ * CONFIGURACIÓN MINIMALISTA PARA EVITAR CONFLICTOS:
+ * 
+ * ✅ Solo MetaMask (injected) - evita conflictos con otras wallets
+ * ❌ Sin WalletConnect - causa conflictos de window.ethereum
+ * ❌ Sin Coinbase Wallet - causa conflictos de window.ethereum
+ * ❌ Sin persistencia en localStorage - causa QuotaExceededError
+ * 
+ * Problemas resueltos:
+ * - QuotaExceededError: localStorage lleno por datos de múltiples wallets
+ * - MetaMask error: "another Ethereum wallet extension also setting the global Ethereum provider"
+ * - Conflictos de múltiples wallets compitiendo por window.ethereum
+ */
 
-// Storage personalizado para persistencia
-const storage = createStorage({
-  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-  key: 'andechain-wallet',
-});
+// Ejecutar limpieza de storage obsoleto una sola vez
+if (typeof window !== 'undefined') {
+  cleanupLegacyStorage();
+}
 
 const wagmiConfig = createConfig({
   chains,
   connectors: [
-    // Injected wallet (MetaMask, Brave, etc.)
-    injected({ 
+    // Solo MetaMask - evita conflictos con otras wallets
+    injected({
       shimDisconnect: true,
       target: 'metaMask',
-    }),
-    // WalletConnect para mobile y otras wallets
-    walletConnect({
-      projectId,
-      metadata: {
-        name: 'AndeChain',
-        description: 'AndeChain DeFi Platform',
-        url: typeof window !== 'undefined' ? window.location.origin : 'https://andechain.com',
-        icons: ['https://andechain.com/icon.png'],
-      },
-      showQrModal: true,
-    }),
-    // Coinbase Wallet
-    coinbaseWallet({
-      appName: 'AndeChain',
-      appLogoUrl: 'https://andechain.com/icon.png',
     }),
   ],
   transports: {
@@ -47,11 +42,10 @@ const wagmiConfig = createConfig({
     [mainnet.id]: http(),
     [sepolia.id]: http(),
   },
-  storage,
+  // ❌ NO usar storage - causa QuotaExceededError
+  // Wagmi manejará la reconexión automáticamente sin persistencia
   ssr: true,
 });
-
-const isWeb3ModalInitialized = false;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,14 +61,14 @@ const queryClient = new QueryClient({
   },
 });
 
-export { isWeb3ModalInitialized, wagmiConfig };
+export { wagmiConfig };
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
-        <QueryClientProvider client={queryClient}>
-            {children}
-        </QueryClientProvider>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }
