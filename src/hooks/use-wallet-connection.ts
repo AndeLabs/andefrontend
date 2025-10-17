@@ -109,53 +109,62 @@ export function useWalletConnection(): UseWalletConnectionReturn {
      return conflictInfo;
    }, [toast]);
 
-     // Determinar estado actual
-     // IMPORTANTE: El orden de las condiciones es crítico para evitar estados inconsistentes
-     // Prioridad: Conexión exitosa > Procesos en progreso > Errores > Desconectado
-     useEffect(() => {
-      // ✅ PRIORIDAD 1: Conexión exitosa (máxima prioridad)
-      // Si está conectado, SIEMPRE mostrar estado conectado, incluso si hay errores anteriores
-      if (isConnected && chain) {
-        if (chain.id === andechain.id) {
-          setState('connected');
-          // Limpiar errores anteriores cuando la conexión es exitosa
-          setError(undefined);
-          logger.info('State set to connected', { 
-            address, 
-            chainId: chain.id,
-            clearedPreviousError: !!error || !!connectError
-          });
-        } else {
-          setState('wrong-network');
-          setError(undefined);
-          logger.info('State set to wrong-network', { 
-            chainId: chain.id, 
-            expected: andechain.id 
-          });
-        }
-      }
-      // ✅ PRIORIDAD 2: Procesos en progreso (solo si no está conectado)
-      else if (isConnecting) {
-        setState('connecting');
-        logger.info('State set to connecting');
-      } else if (isSwitching) {
-        setState('switching-network');
-        logger.info('State set to switching-network');
-      }
-      // ✅ PRIORIDAD 3: Errores (solo si no está conectado)
-      else if (error || connectError) {
-        setState('error');
-        logger.warn('State set to error', { 
-          error: error?.message, 
-          connectError: connectError?.message 
-        });
-      }
-      // ✅ PRIORIDAD 4: Desconectado
-      else {
-        setState('disconnected');
-        logger.info('State set to disconnected');
-      }
-    }, [isConnected, isConnecting, isSwitching, chain, error, connectError]);
+      // Determinar estado actual
+      // IMPORTANTE: El orden de las condiciones es crítico para evitar estados inconsistentes
+      // Prioridad: Conexión exitosa > Procesos en progreso > Errores > Desconectado
+      useEffect(() => {
+       // ✅ PRIORIDAD 1: Conexión exitosa (máxima prioridad)
+       // Si está conectado, SIEMPRE mostrar estado conectado, incluso si hay errores anteriores
+       if (isConnected && chain) {
+         if (chain.id === andechain.id) {
+           setState('connected');
+           // ✅ CRÍTICO: Limpiar TODOS los errores cuando hay conexión exitosa
+           setError(undefined);
+           logger.info('State set to connected', { 
+             address, 
+             chainId: chain.id,
+             clearedPreviousError: !!error || !!connectError
+           });
+         } else {
+           setState('wrong-network');
+           // ✅ También limpiar aquí
+           setError(undefined);
+           logger.info('State set to wrong-network', { 
+             chainId: chain.id, 
+             expected: andechain.id 
+           });
+         }
+         // ✅ CRÍTICO: Retornar aquí para no caer en las otras condiciones
+         return;
+       }
+       
+       // ✅ PRIORIDAD 2: Procesos en progreso (solo si NO está conectado)
+       if (isConnecting) {
+         setState('connecting');
+         logger.info('State set to connecting');
+         return;
+       }
+       
+       if (isSwitching) {
+         setState('switching-network');
+         logger.info('State set to switching-network');
+         return;
+       }
+       
+       // ✅ PRIORIDAD 3: Errores (solo si NO está conectado y NO hay procesos en progreso)
+       if (error || connectError) {
+         setState('error');
+         logger.warn('State set to error', { 
+           error: error?.message, 
+           connectError: connectError?.message 
+         });
+         return;
+       }
+       
+       // ✅ PRIORIDAD 4: Desconectado
+       setState('disconnected');
+       logger.info('State set to disconnected');
+     }, [isConnected, isConnecting, isSwitching, chain, error, connectError]);
 
     // Eager connection: Wagmi maneja automáticamente la reconexión
     // Solo necesitamos verificar que se intente una sola vez
