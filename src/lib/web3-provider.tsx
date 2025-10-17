@@ -5,6 +5,7 @@ import { mainnet, sepolia } from 'wagmi/chains';
 import { injected } from 'wagmi/connectors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { andechain } from './chains';
+import { clearAllStorage } from './clear-storage';
 import { cleanupLegacyStorage } from './storage-cleanup';
 
 const chains = [andechain, mainnet, sepolia] as const;
@@ -25,8 +26,12 @@ const chains = [andechain, mainnet, sepolia] as const;
 
 // Ejecutar limpieza de storage obsoleto una sola vez
 if (typeof window !== 'undefined') {
+  clearAllStorage();
   cleanupLegacyStorage();
 }
+
+// Obtener URL del RPC de AndeChain desde la configuración de chain
+const andechainRpcUrl = andechain.rpcUrls.default.http[0];
 
 const wagmiConfig = createConfig({
   chains,
@@ -38,7 +43,8 @@ const wagmiConfig = createConfig({
     }),
   ],
   transports: {
-    [andechain.id]: http(),
+    // ✅ URL explícita para AndeChain (local o testnet según .env)
+    [andechain.id]: http(andechainRpcUrl),
     [mainnet.id]: http(),
     [sepolia.id]: http(),
   },

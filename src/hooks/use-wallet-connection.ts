@@ -142,109 +142,144 @@ export function useWalletConnection(): UseWalletConnectionReturn {
     };
   }, [isConnecting, isSwitching, toast]);
 
-  // Función de switch mejorada (definida primero para usarla en connect)
-  const switchToAndeChain = useCallback(async () => {
-    try {
-      setError(undefined);
-      
-      if (!switchChain) {
-        throw new Error('Switch chain not available');
-      }
+   // Función de switch mejorada (definida primero para usarla en connect)
+   const switchToAndeChain = useCallback(async () => {
+     try {
+       setError(undefined);
+       
+       if (!switchChain) {
+         throw new Error('Switch chain not available');
+       }
 
-      await switchChain({ chainId: andechain.id });
-      
-      toast({
-        title: 'Network Switched',
-        description: `Connected to ${andechain.name}`,
-      });
-      
-      logger.info('Switched to AndeChain successfully');
-      
-    } catch (err: any) {
-      logger.error('Switch network error:', err);
-      setError(err);
-      
-      // Error 4902: Chain no agregada
-      if (err.code === 4902 || err.message?.includes('Unrecognized chain')) {
-        await addAndeChainToWallet();
-      } else if (err.code === 4001) {
-        toast({
-          title: 'Switch Rejected',
-          description: 'You rejected the network switch request.',
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Switch Failed',
-          description: err.message || 'Failed to switch network',
-        });
-      }
-      
-      throw err;
-    }
-  }, [switchChain, toast]);
+       logger.info('Attempting to switch to AndeChain', {
+         chainId: andechain.id,
+         chainName: andechain.name,
+         rpcUrl: andechain.rpcUrls.default.http[0],
+       });
 
-  // Función de conexión mejorada
-  const connect = useCallback(async (connectorId?: string) => {
-    try {
-      setError(undefined);
-      
-      // Buscar conector - prioridad a MetaMask (injected)
-      const connector = connectorId 
-        ? connectors.find(c => c.id === connectorId)
-        : connectors.find(c => c.id === 'injected') || 
-          connectors.find(c => c.name.toLowerCase().includes('metamask'));
+       await switchChain({ chainId: andechain.id });
+       
+       toast({
+         title: 'Network Switched',
+         description: `Connected to ${andechain.name}`,
+       });
+       
+       logger.info('Switched to AndeChain successfully', { chainId: andechain.id });
+       
+     } catch (err: any) {
+       logger.error('Switch network error:', {
+         message: err?.message,
+         code: err?.code,
+         chainId: andechain.id,
+         rpcUrl: andechain.rpcUrls.default.http[0],
+       });
+       setError(err);
+       
+       // Error 4902: Chain no agregada
+       if (err.code === 4902 || err.message?.includes('Unrecognized chain')) {
+         logger.info('Chain not recognized, attempting to add to wallet');
+         await addAndeChainToWallet();
+       } else if (err.code === 4001) {
+         toast({
+           title: 'Switch Rejected',
+           description: 'You rejected the network switch request.',
+         });
+       } else {
+         toast({
+           variant: 'destructive',
+           title: 'Switch Failed',
+           description: err.message || 'Failed to switch network',
+         });
+       }
+       
+       throw err;
+     }
+   }, [switchChain, toast]);
 
-      if (!connector) {
-        throw new Error('No wallet connector found');
-      }
+   // Función de conexión mejorada
+   const connect = useCallback(async (connectorId?: string) => {
+     try {
+       setError(undefined);
+       
+       // Log de diagnóstico: información de AndeChain
+       logger.info('Attempting wallet connection', {
+         chainId: andechain.id,
+         chainName: andechain.name,
+         rpcUrl: andechain.rpcUrls.default.http[0],
+         isLocalChain: process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true',
+       });
+       
+       // Buscar conector - prioridad a MetaMask (injected)
+       const connector = connectorId 
+         ? connectors.find(c => c.id === connectorId)
+         : connectors.find(c => c.id === 'injected') || 
+           connectors.find(c => c.name.toLowerCase().includes('metamask'));
 
-      // Verificar si MetaMask está instalado (solo para injected)
-      if (connector.id === 'injected' && typeof window !== 'undefined' && !window.ethereum) {
-        throw new Error('MetaMask not installed');
-      }
+       if (!connector) {
+         throw new Error('No wallet connector found');
+       }
 
-      await wagmiConnect({ connector });
-      
-      // Guardar conector usado para reconexión futura
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.WALLET_CONNECTOR, connector.id);
-      }
-      
-      logger.info('Wallet connected successfully', { connectorId: connector.id });
-      
-    } catch (err: any) {
-      logger.error('Connection error:', err);
-      setError(err);
-      
-      // Manejo de errores específicos
-      if (err.message?.includes('MetaMask not installed')) {
-        toast({
-          variant: 'destructive',
-          title: 'MetaMask Not Installed',
-          description: 'Please install MetaMask to continue.',
-        });
-        // Abrir descarga en nueva pestaña
-        window.open('https://metamask.io/download/', '_blank');
-      } else if (err.code === 4001) {
-        toast({
-          title: 'Connection Rejected',
-          description: 'You rejected the connection request.',
-        });
-      } else if (err.message?.includes('Connector already connected')) {
-        // Ya está conectado, intentar switch
-        await switchToAndeChain();
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Connection Failed',
-          description: err.message || 'Failed to connect wallet',
-        });
-      }
-      
-      throw err;
-    }
-  }, [connectors, wagmiConnect, toast, switchToAndeChain]);
+       // Verificar si MetaMask está instalado (solo para injected)
+       if (connector.id === 'injected' && typeof window !== 'undefined' && !window.ethereum) {
+         throw new Error('MetaMask not installed');
+       }
+
+       await wagmiConnect({ connector });
+       
+       // Guardar conector usado para reconexión futura
+       if (typeof window !== 'undefined') {
+         localStorage.setItem(STORAGE_KEYS.WALLET_CONNECTOR, connector.id);
+       }
+       
+       logger.info('Wallet connected successfully', { 
+         connectorId: connector.id,
+         chainId: andechain.id,
+       });
+       
+     } catch (err: any) {
+       logger.error('Connection error:', {
+         message: err?.message,
+         code: err?.code,
+         chainId: andechain.id,
+         rpcUrl: andechain.rpcUrls.default.http[0],
+       });
+       setError(err);
+       
+       // Manejo de errores específicos
+       if (err.message?.includes('MetaMask not installed')) {
+         toast({
+           variant: 'destructive',
+           title: 'MetaMask Not Installed',
+           description: 'Please install MetaMask to continue.',
+         });
+         // Abrir descarga en nueva pestaña
+         window.open('https://metamask.io/download/', '_blank');
+       } else if (err.code === 4001) {
+         toast({
+           title: 'Connection Rejected',
+           description: 'You rejected the connection request.',
+         });
+       } else if (err.message?.includes('Connector already connected')) {
+         // Ya está conectado, intentar switch
+         await switchToAndeChain();
+       } else if (err.message?.includes('AndeChain Local')) {
+         // Error específico de conexión a AndeChain Local
+         toast({
+           variant: 'destructive',
+           title: 'Cannot Connect to AndeChain Local',
+           description: 'Make sure the local node is running on http://localhost:8545',
+         });
+       } else {
+         toast({
+           variant: 'destructive',
+           title: 'Connection Failed',
+           description: err.message || 'Failed to connect wallet',
+         });
+       }
+       
+       throw err;
+     }
+   }, [connectors, wagmiConnect, toast, switchToAndeChain]);
 
   // Función de desconexión mejorada
   const disconnect = useCallback(() => {
