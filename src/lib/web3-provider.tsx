@@ -7,8 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { andechain } from './chains';
 import { clearAllStorage } from './clear-storage';
 import { cleanupLegacyStorage } from './storage-cleanup';
-import { logger } from './logger';
-import { safeStorage } from './safe-storage';
+import { useEffect } from 'react';
 
 const chains = [andechain, mainnet, sepolia] as const;
 
@@ -32,11 +31,9 @@ if (typeof window !== 'undefined') {
   // Guard para evitar múltiples inicializaciones
   if (!(window as any).__andechain_web3_initialized) {
     (window as any).__andechain_web3_initialized = true;
-    clearAllStorage();
+    // Only cleanup legacy storage, preserve Wagmi connection state
     cleanupLegacyStorage();
-    logger.info('Web3 provider initialized - storage cleanup completed');
-  } else {
-    logger.log('Web3 provider already initialized, skipping duplicate initialization');
+    console.log('✅ Web3 provider initialized');
   }
 }
 
@@ -94,11 +91,56 @@ const queryClient = new QueryClient({
 
 export { wagmiConfig };
 
+function WagmiConnectionHandler({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    // Escuchar cambios en la conexión
+    const handleAccountsChanged = (accounts: string[]) => {
+      console.log('🔔 Accounts changed event:', accounts);
+      if (accounts.length > 0) {
+        console.log('✅ Wallet connected via event:', accounts[0]);
+        // Forzar re-render del componente
+        window.dispatchEvent(new CustomEvent('wallet-status-changed', { 
+          detail: { connected: true, address: accounts[0] } 
+        }));
+      }
+    };
+
+    const handleChainChanged = (chainId: string) => {
+      console.log('🔔 Chain changed event:', chainId);
+      window.location.reload();
+    };
+
+    const handleDisconnect = () => {
+      console.log('🔔 Disconnect event');
+      window.dispatchEvent(new CustomEvent('wallet-status-changed', { 
+        detail: { connected: false } 
+      }));
+    };
+
+    // Registrar listeners en window.ethereum
+    if (typeof window !== 'undefined' && window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+      window.ethereum.on('disconnect', handleDisconnect);
+
+      return () => {
+        window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum?.removeListener('chainChanged', handleChainChanged);
+        window.ethereum?.removeListener('disconnect', handleDisconnect);
+      };
+    }
+  }, []);
+
+  return <>{children}</>;
+}
+
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <WagmiConnectionHandler>
+          {children}
+        </WagmiConnectionHandler>
       </QueryClientProvider>
     </WagmiProvider>
   );
