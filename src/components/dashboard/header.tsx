@@ -33,8 +33,7 @@ export function DashboardHeader() {
 
   const handleDisconnect = () => {
     disconnect();
-    // Redirect to login page
-    window.location.href = '/login';
+    // User will see the ConnectWalletPrompt in the dashboard
   };
 
   return (
@@ -51,9 +50,6 @@ export function DashboardHeader() {
           variant="outline"
           size="default"
           showBalance={true}
-          onDisconnected={() => {
-            window.location.href = '/login';
-          }}
         />
 
         <ThemeToggle />
