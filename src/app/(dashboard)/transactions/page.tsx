@@ -18,83 +18,66 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, PlusCircle, CheckCircle, Clock, XCircle, Landmark } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, query, orderBy } from "firebase/firestore";
+import { ArrowUpRight, ArrowDownLeft, PlusCircle, CheckCircle, Clock, XCircle, Landmark, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-
-type Transaction = {
-  id?: string;
-  hash: string;
-  type: "Send" | "Receive" | "Staking";
-  amount: string;
-  from: string;
-  to: string;
-  status: "Completed" | "Pending" | "Failed";
-  timestamp: any;
-};
+import { useTransactionHistory, type Transaction } from "@/hooks/use-transaction-history";
+import { useAccount } from "wagmi";
+import { useEffect, useState } from "react";
 
 export default function TransactionsPage() {
-  const { user } = useUser();
-  const firestore = useFirestore();
+  const { address } = useAccount();
+  const { transactions, addTransaction, removeTransaction, clearHistory, isLoading } = useTransactionHistory();
+  const [mounted, setMounted] = useState(false);
 
-  const transactionsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    const baseRef = collection(firestore, `transactions/${user.uid}`);
-    // Order transactions by timestamp in descending order at the query level
-    return query(baseRef, orderBy("timestamp", "desc"));
-  }, [user, firestore]);
-
-  const { data: transactions, isLoading } = useCollection<Transaction>(transactionsQuery);
+  // Prevenir hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const createSampleTransaction = () => {
-    if (!transactionsQuery) return;
+    if (!address) return;
+
+    const types = ['Send', 'Receive', 'Staking'] as const;
+    const statuses = ['success', 'pending', 'failed'] as const;
+    
     const sampleTx: Omit<Transaction, 'id' | 'timestamp'> = {
       hash: "0x" + Math.random().toString(16).substr(2, 8) + "..." + Math.random().toString(16).substr(2, 8),
-      type: ["Send", "Receive", "Staking"][Math.floor(Math.random() * 3)] as Transaction['type'],
-      amount: `${(Math.random() * 100).toFixed(2)} AND`,
-      from: user?.uid.substring(0, 6) + "..." + user?.uid.substring(user.uid.length - 4) || "0x123...456",
+      type: types[Math.floor(Math.random() * types.length)],
+      value: `${(Math.random() * 100).toFixed(2)} ANDE`,
+      from: address.substring(0, 6) + "..." + address.substring(address.length - 4),
       to: "0x" + Math.random().toString(16).substr(2, 3) + "..." + Math.random().toString(16).substr(2, 3),
-      status: ["Completed", "Pending", "Failed"][Math.floor(Math.random() * 3)] as Transaction['status'],
+      status: statuses[Math.floor(Math.random() * statuses.length)],
     };
     
-    // Use the non-blocking Firestore update function
-    addDocumentNonBlocking(collection(firestore, `transactions/${user.uid}`), {
-      ...sampleTx,
-      timestamp: serverTimestamp(),
+    addTransaction(sampleTx);
+  };
+
+  const formatDate = (timestamp: number) => {
+    if (!timestamp) return '...';
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '...';
-    // Check if it's a Firestore timestamp
-    if (timestamp?.toDate) {
-      return timestamp.toDate().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    }
-    // Fallback for string or number dates
-    return new Date(timestamp).toLocaleDateString();
-  }
-
   const getStatusBadge = (status: Transaction['status']) => {
     switch (status) {
-      case 'Completed':
-        return <Badge variant="secondary" className="bg-green-600/10 text-green-400 border-green-400/20"><CheckCircle className="mr-1 h-3 w-3" />{status}</Badge>;
-      case 'Pending':
-        return <Badge variant="secondary" className="bg-yellow-600/10 text-yellow-400 border-yellow-400/20"><Clock className="mr-1 h-3 w-3" />{status}</Badge>;
-      case 'Failed':
-        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />{status}</Badge>;
+      case 'success':
+        return <Badge variant="secondary" className="bg-green-600/10 text-green-400 border-green-400/20"><CheckCircle className="mr-1 h-3 w-3" />Success</Badge>;
+      case 'pending':
+        return <Badge variant="secondary" className="bg-yellow-600/10 text-yellow-400 border-yellow-400/20"><Clock className="mr-1 h-3 w-3" />Pending</Badge>;
+      case 'failed':
+        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Failed</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
   
   const getTypeIcon = (type: Transaction['type']) => {
-     switch (type) {
+    switch (type) {
       case "Send":
         return (
           <span className="p-1.5 bg-red-500/10 rounded-full">
@@ -116,8 +99,20 @@ export default function TransactionsPage() {
       default:
         return null;
     }
-  }
+  };
 
+  if (!mounted) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Transaction History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -125,13 +120,21 @@ export default function TransactionsPage() {
         <div>
           <CardTitle>Transaction History</CardTitle>
           <CardDescription>
-            A log of all your recent blockchain transactions.
+            A log of all your recent blockchain transactions (stored locally).
           </CardDescription>
         </div>
-        <Button onClick={createSampleTransaction} variant="outline" size="sm">
-          <PlusCircle className="mr-2" />
-          Add Sample TX
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={createSampleTransaction} variant="outline" size="sm">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Sample TX
+          </Button>
+          {transactions.length > 0 && (
+            <Button onClick={clearHistory} variant="outline" size="sm" className="text-destructive hover:text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Clear
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -143,13 +146,14 @@ export default function TransactionsPage() {
               <TableHead className="hidden md:table-cell">To</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Date</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Skeleton className="h-8 w-full" />
                   </TableCell>
                 </TableRow>
@@ -163,7 +167,7 @@ export default function TransactionsPage() {
                     <span className="font-medium">{tx.type}</span>
                   </div>
                 </TableCell>
-                <TableCell>{tx.amount}</TableCell>
+                <TableCell>{tx.value}</TableCell>
                 <TableCell className="hidden md:table-cell font-mono text-xs">
                   {tx.from}
                 </TableCell>
@@ -173,13 +177,23 @@ export default function TransactionsPage() {
                 <TableCell>
                   {getStatusBadge(tx.status)}
                 </TableCell>
-                <TableCell className="text-right">{formatDate(tx.timestamp)}</TableCell>
+                <TableCell className="text-right text-sm">{formatDate(tx.timestamp)}</TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeTransaction(tx.id)}
+                    className="h-8 w-8 p-0 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
-             {!isLoading && (!transactions || transactions.length === 0) && (
+            {!isLoading && (!transactions || transactions.length === 0) && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-                  No transactions found.
+                <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                  No transactions found. Your transaction history will appear here.
                 </TableCell>
               </TableRow>
             )}

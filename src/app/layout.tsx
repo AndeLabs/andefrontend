@@ -3,7 +3,6 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Web3Provider } from '@/lib/web3-provider';
-import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/theme-provider';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -27,11 +26,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <FirebaseClientProvider>
-            <Web3Provider>
-              {children}
-            </Web3Provider>
-          </FirebaseClientProvider>
+          <Web3Provider>
+            {children}
+          </Web3Provider>
           <Toaster />
         </ThemeProvider>
       </body>

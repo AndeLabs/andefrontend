@@ -1,0 +1,320 @@
+'use client';
+
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAccount, useBalance } from 'wagmi';
+import { parseEther, formatEther, isAddress } from 'viem';
+import { Droplet, CheckCircle2, AlertCircle, Loader2, Wallet, Copy, ExternalLink, History } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { andechain } from '@/lib/chains';
+import { Separator } from '@/components/ui/separator';
+
+interface FaucetRequest {
+  address: string;
+  amount: string;
+  timestamp: number;
+  txHash?: string;
+}
+
+export default function FaucetPage() {
+  const { address, isConnected } = useAccount();
+  const { data: balance } = useBalance({
+    address: address,
+    chainId: andechain.id,
+  });
+  const { toast } = useToast();
+  const FIXED_AMOUNT = '10'; // 10 ANDE per request
+  const [loading, setLoading] = useState(false);
+  const [customAddress, setCustomAddress] = useState('');
+  const [recentRequests, setRecentRequests] = useState<FaucetRequest[]>([]);
+
+  const targetAddress = customAddress || address;
+  const isValidAddress = targetAddress ? isAddress(targetAddress) : false;
+
+  const requestTokens = async () => {
+    if (!targetAddress || !isValidAddress) {
+      toast({
+        title: 'Invalid Address',
+        description: 'Please enter a valid Ethereum address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+
+
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:3001/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          address: targetAddress,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const newRequest: FaucetRequest = {
+          address: targetAddress,
+          amount: FIXED_AMOUNT,
+          timestamp: Date.now(),
+          txHash: data.txHash,
+        };
+        
+        setRecentRequests((prev) => [newRequest, ...prev].slice(0, 5));
+
+        toast({
+          title: 'Success!',
+          description: `${FIXED_AMOUNT} ANDE sent to ${targetAddress.slice(0, 10)}...${targetAddress.slice(-8)}`,
+        });
+        setCustomAddress('');
+      } else {
+        throw new Error(data.error || 'Failed to request tokens');
+      }
+    } catch (error) {
+      console.error('Faucet error:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to request tokens from faucet',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyAddress = (addr: string) => {
+    navigator.clipboard.writeText(addr);
+    toast({
+      title: 'Copied!',
+      description: 'Address copied to clipboard',
+    });
+  };
+
+
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <Droplet className="h-8 w-8 text-blue-500" />
+          AndeChain Faucet
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Get free test ANDE tokens for development on {andechain.name}
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Request Tokens</CardTitle>
+            <CardDescription>
+              Receive test ANDE tokens instantly for your wallet
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {isConnected && address && (
+              <Alert>
+                <Wallet className="h-4 w-4" />
+                <AlertTitle>Connected Wallet</AlertTitle>
+                <AlertDescription className="mt-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                      {address}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyAddress(address)}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {balance && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Current Balance:</span>
+                      <span className="font-semibold">
+                        {parseFloat(formatEther(balance.value)).toFixed(4)} {balance.symbol}
+                      </span>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {!isConnected && (
+              <div className="space-y-2">
+                <Label htmlFor="address">Recipient Address</Label>
+                <Input
+                  id="address"
+                  value={customAddress}
+                  onChange={(e) => setCustomAddress(e.target.value)}
+                  placeholder="0x..."
+                  className={!isValidAddress && customAddress ? 'border-destructive' : ''}
+                />
+                {customAddress && !isValidAddress && (
+                  <p className="text-xs text-destructive">Invalid Ethereum address</p>
+                )}
+              </div>
+            )}
+
+            <Alert>
+              <Droplet className="h-4 w-4" />
+              <AlertTitle>Fixed Amount</AlertTitle>
+              <AlertDescription>
+                Each request will send <strong>{FIXED_AMOUNT} ANDE</strong> to your wallet
+              </AlertDescription>
+            </Alert>
+
+            <Button
+              onClick={requestTokens}
+              disabled={loading || !isValidAddress}
+              className="w-full"
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Requesting Tokens...
+                </>
+              ) : (
+                <>
+                  <Droplet className="mr-2 h-5 w-5" />
+                  Request {FIXED_AMOUNT} ANDE Tokens
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Faucet Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Amount per Request</span>
+                  <span className="font-semibold">{FIXED_AMOUNT} ANDE</span>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Network</span>
+                  <Badge variant="outline">{andechain.name}</Badge>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Chain ID</span>
+                  <span className="font-mono font-semibold">{andechain.id}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Important Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-start gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <p className="text-muted-foreground">
+                  Tokens are delivered instantly
+                </p>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <p className="text-muted-foreground">
+                  Local development network only
+                </p>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <p className="text-muted-foreground">
+                  Test tokens have no real value
+                </p>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <p className="text-muted-foreground">
+                  Faucet must be running on port 3001
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {recentRequests.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Recent Requests
+            </CardTitle>
+            <CardDescription>
+              Your recent faucet transactions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentRequests.map((req, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/50"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs font-mono">
+                        {req.address.slice(0, 10)}...{req.address.slice(-8)}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => copyAddress(req.address)}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(req.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="secondary">+{req.amount} ANDE</Badge>
+                    {req.txHash && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 mt-1"
+                        onClick={() => copyAddress(req.txHash!)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Tx
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

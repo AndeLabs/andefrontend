@@ -3,16 +3,17 @@
 
 import dynamic from 'next/dynamic';
 import { DollarSign, Landmark, Wallet } from "lucide-react";
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount, useBalance, useReadContract } from 'wagmi';
 import { formatUnits } from 'viem';
 
 import { BalanceCard } from "@/components/dashboard/balance-card";
-import { NetworkStatus } from "@/components/dashboard/network-status";
+import { NetworkStatusCompact } from "@/components/dashboard/network-status-compact";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from '@/components/ui/skeleton';
-import { andechanTestnet } from '@/lib/chains';
+import { andechain } from '@/lib/chains';
+import { ANDECHAIN_CONTRACTS } from '@/contracts/addresses';
+import ANDETokenABI from '@/contracts/abis/ANDEToken.json';
 
 const OverviewChart = dynamic(() => 
   import('@/components/dashboard/overview-chart').then(mod => mod.OverviewChart),
@@ -22,62 +23,91 @@ const OverviewChart = dynamic(() =>
   }
 );
 
-const portfolioData = [
-    { asset: 'AndeChain (AND)', balance: '1,250.50', value: '$2,876.15', allocation: '45%' },
-    { asset: 'Ethereum (ETH)', balance: '0.50', value: '$1,750.00', allocation: '30%' },
-    { asset: 'USD Coin (USDC)', balance: '1,000.00', value: '$1,000.00', allocation: '15%' },
-    { asset: 'Staked AND', balance: '500.00', value: '$1,150.00', allocation: '10%' },
-];
-
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
-  const { data: balance, isLoading: isBalanceLoading } = useBalance({
+  
+  const { data: nativeBalance, isLoading: isNativeLoading } = useBalance({
     address: address,
-    chainId: andechanTestnet.id,
+    chainId: andechain.id,
   });
 
-  const formattedBalance = balance ? parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(2) : '0.00';
-  const balanceDisplay = isConnected ? `${formattedBalance} ${balance?.symbol}` : '$0.00';
-  const usdValueDisplay = isConnected ? `~$${(parseFloat(formattedBalance) * 2.3).toFixed(2)} USD` : 'USD'; // Dummy price
+  const { data: andeTokenBalance, isLoading: isTokenLoading } = useReadContract({
+    address: ANDECHAIN_CONTRACTS.ANDEToken as `0x${string}`,
+    abi: ANDETokenABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    chainId: andechain.id,
+    query: {
+      enabled: !!address && isConnected,
+    }
+  });
+
+  const formattedNativeBalance = nativeBalance 
+    ? parseFloat(formatUnits(nativeBalance.value, nativeBalance.decimals)).toFixed(4) 
+    : '0.00';
+    
+  const formattedTokenBalance = andeTokenBalance 
+    ? parseFloat(formatUnits(andeTokenBalance as bigint, 18)).toFixed(2) 
+    : '0.00';
+
+  const andePrice = 2.30;
+  const totalValue = parseFloat(formattedNativeBalance) * andePrice + parseFloat(formattedTokenBalance) * andePrice;
+  
+  const nativeBalanceDisplay = isConnected ? `${formattedNativeBalance} ${nativeBalance?.symbol || 'ANDE'}` : '0.00 ANDE';
+  const tokenBalanceDisplay = isConnected ? `${formattedTokenBalance} ANDE` : '0.00 ANDE';
+  const totalBalanceDisplay = isConnected ? `$${totalValue.toFixed(2)}` : '$0.00';
+
+  const portfolioData = [
+    { 
+      asset: 'ANDE Token', 
+      balance: tokenBalanceDisplay, 
+      value: `$${(parseFloat(formattedTokenBalance) * andePrice).toFixed(2)}`,
+      allocation: totalValue > 0 ? `${((parseFloat(formattedTokenBalance) * andePrice / totalValue) * 100).toFixed(1)}%` : '0%'
+    },
+    { 
+      asset: 'Native ANDE', 
+      balance: nativeBalanceDisplay, 
+      value: `$${(parseFloat(formattedNativeBalance) * andePrice).toFixed(2)}`,
+      allocation: totalValue > 0 ? `${((parseFloat(formattedNativeBalance) * andePrice / totalValue) * 100).toFixed(1)}%` : '0%'
+    },
+  ];
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-      {/* Top Row Cards */}
       <div className="lg:col-span-1">
           <BalanceCard 
             title="Total Balance"
-            balance={balanceDisplay}
-            usdValue={usdValueDisplay}
+            balance={totalBalanceDisplay}
+            usdValue={`${parseFloat(formattedTokenBalance) + parseFloat(formattedNativeBalance)} ANDE`}
             change="+2.5%"
             icon={<DollarSign />}
-            isLoading={isBalanceLoading && isConnected}
+            isLoading={(isNativeLoading || isTokenLoading) && isConnected}
           />
       </div>
        <div className="lg:col-span-1">
           <BalanceCard 
-            title="Wallet Balance"
-            balance={balanceDisplay}
-            usdValue={usdValueDisplay}
+            title="ANDE Token"
+            balance={tokenBalanceDisplay}
+            usdValue={`~$${(parseFloat(formattedTokenBalance) * andePrice).toFixed(2)}`}
             change="+1.8%"
             icon={<Wallet />}
-            isLoading={isBalanceLoading && isConnected}
+            isLoading={isTokenLoading && isConnected}
           />
       </div>
       <div className="lg:col-span-1">
           <BalanceCard 
-            title="Staking Balance"
-            balance="$1,150.00"
-            usdValue="15.2% APY"
+            title="Native Balance"
+            balance={nativeBalanceDisplay}
+            usdValue={`~$${(parseFloat(formattedNativeBalance) * andePrice).toFixed(2)}`}
             change="+0.5%"
             icon={<Landmark />}
-            isLoading={false} // Staking data is static for now
+            isLoading={isNativeLoading && isConnected}
           />
       </div>
       <div className="lg:col-span-1">
-         <NetworkStatus />
+         <NetworkStatusCompact />
       </div>
 
-      {/* Main Content Area */}
       <div className="lg:col-span-3">
         <OverviewChart />
       </div>
@@ -88,25 +118,31 @@ export default function DashboardPage() {
                 <CardDescription>Asset allocation</CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Asset</TableHead>
-                            <TableHead className="text-right">Allocation</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {portfolioData.map(asset => (
-                            <TableRow key={asset.asset}>
-                                <TableCell>
-                                    <div className="font-medium">{asset.asset}</div>
-                                    <div className="text-xs text-muted-foreground">{asset.balance}</div>
-                                </TableCell>
-                                <TableCell className="text-right">{asset.allocation}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                {isConnected ? (
+                  <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead>Asset</TableHead>
+                              <TableHead className="text-right">Allocation</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {portfolioData.map(asset => (
+                              <TableRow key={asset.asset}>
+                                  <TableCell>
+                                      <div className="font-medium">{asset.asset}</div>
+                                      <div className="text-xs text-muted-foreground">{asset.balance}</div>
+                                  </TableCell>
+                                  <TableCell className="text-right">{asset.allocation}</TableCell>
+                              </TableRow>
+                          ))}
+                      </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    Connect your wallet to view portfolio
+                  </div>
+                )}
             </CardContent>
         </Card>
       </div>

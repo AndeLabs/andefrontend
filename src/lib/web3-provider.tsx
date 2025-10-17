@@ -1,62 +1,77 @@
 'use client';
 
-import { createWeb3Modal } from '@web3modal/wagmi/react';
-import { WagmiProvider, createConfig, http } from 'wagmi';
+import { WagmiProvider, createConfig, http, createStorage } from 'wagmi';
 import { mainnet, sepolia } from 'wagmi/chains';
+import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { andechanTestnet } from './chains';
+import { andechain } from './chains';
 
-const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID;
+const chains = [andechain, mainnet, sepolia] as const;
 
-let isWeb3ModalInitialized = false;
-if (projectId) {
-  const metadata = {
-    name: 'AndeChain Nexus',
-    description: 'Enterprise-grade Web3 DeFi Application',
-    url: 'https://web3modal.com',
-    icons: ['https://avatars.githubusercontent.com/u/37784886'],
-  };
+// Configuración de WalletConnect (opcional)
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo-project-id';
 
-  const chains = [andechanTestnet, mainnet, sepolia] as const;
+// Storage personalizado para persistencia
+const storage = createStorage({
+  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  key: 'andechain-wallet',
+});
 
-  const wagmiConfig = createConfig({
-    chains,
-    transports: {
-      [andechanTestnet.id]: http(),
-      [mainnet.id]: http(),
-      [sepolia.id]: http(),
+const wagmiConfig = createConfig({
+  chains,
+  connectors: [
+    // Injected wallet (MetaMask, Brave, etc.)
+    injected({ 
+      shimDisconnect: true,
+      target: 'metaMask',
+    }),
+    // WalletConnect para mobile y otras wallets
+    walletConnect({
+      projectId,
+      metadata: {
+        name: 'AndeChain',
+        description: 'AndeChain DeFi Platform',
+        url: typeof window !== 'undefined' ? window.location.origin : 'https://andechain.com',
+        icons: ['https://andechain.com/icon.png'],
+      },
+      showQrModal: true,
+    }),
+    // Coinbase Wallet
+    coinbaseWallet({
+      appName: 'AndeChain',
+      appLogoUrl: 'https://andechain.com/icon.png',
+    }),
+  ],
+  transports: {
+    [andechain.id]: http(),
+    [mainnet.id]: http(),
+    [sepolia.id]: http(),
+  },
+  storage,
+  ssr: true,
+});
+
+const isWeb3ModalInitialized = false;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60,
+      refetchOnWindowFocus: false,
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
-    ssr: true,
-  });
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
-  createWeb3Modal({
-    wagmiConfig,
-    projectId,
-    metadata,
-    defaultChain: andechanTestnet
-  });
-  isWeb3ModalInitialized = true;
-} else {
-  console.warn("NEXT_PUBLIC_WC_PROJECT_ID is not set. Web3Modal will not be initialized.");
-}
-
-const queryClient = new QueryClient();
-
-export { isWeb3ModalInitialized };
+export { isWeb3ModalInitialized, wagmiConfig };
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
-  const wagmiConfig = createConfig({
-    chains: [andechanTestnet, mainnet, sepolia],
-    transports: {
-      [andechanTestnet.id]: http(),
-      [mainnet.id]: http(),
-      [sepolia.id]: http(),
-    },
-    ssr: true,
-  });
-
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
         <QueryClientProvider client={queryClient}>
             {children}
         </QueryClientProvider>

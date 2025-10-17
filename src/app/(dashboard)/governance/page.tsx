@@ -31,7 +31,7 @@ const proposals = [
     endDate: 'in 10 days',
     votesFor: 85,
     votesAgainst: 15,
-    description: 'Allocate 50,000 AND from the treasury to fund a 3-month marketing campaign managed by community-elected members.',
+    description: 'Allocate 50,000 ANDE from the treasury to fund a 3-month marketing campaign managed by community-elected members.',
   },
     {
     id: 'AIP-003',
@@ -40,7 +40,7 @@ const proposals = [
     endDate: '2 weeks ago',
     votesFor: 91,
     votesAgainst: 9,
-    description: 'Partner with LiquiFi to add new yield farming opportunities for AND token holders.',
+    description: 'Partner with LiquiFi to add new yield farming opportunities for ANDE token holders.',
   },
 ];
 

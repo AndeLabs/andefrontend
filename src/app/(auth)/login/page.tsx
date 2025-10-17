@@ -4,260 +4,213 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, Lock } from "lucide-react";
-import { GithubAuthProvider, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, User, signInWithCustomToken } from "firebase/auth";
-import { doc } from "firebase/firestore";
-import { useAuth, useFirestore, useUser } from "@/firebase";
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { useAccount, useSignMessage } from 'wagmi';
-import { SiweMessage } from 'siwe';
-import { getNonce, verifySignature } from '@/ai/flows/siwe-flow';
+import { Wallet, ArrowRight, Shield, Zap } from "lucide-react";
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { injected } from 'wagmi/connectors';
 
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Icons } from "@/components/icons";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { andechanTestnet } from "@/lib/chains";
+import { andechain } from "@/lib/chains";
 
 export default function LoginPage() {
   const router = useRouter();
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { address, isConnected, isConnecting } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
-  const { address, chainId } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const [hasAttemptedConnection, setHasAttemptedConnection] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    // Clear any previous connection state when entering login page
+    // But don't disconnect if user is already connected
+    if (!isConnected) {
+      localStorage.removeItem('walletConnected');
+      localStorage.removeItem('walletAddress');
+    }
+  }, [isConnected]);
+
+  useEffect(() => {
+    if (isConnected && address && hasAttemptedConnection) {
+      // Store wallet connection in localStorage for persistence
+      localStorage.setItem('walletConnected', 'true');
+      localStorage.setItem('walletAddress', address);
       router.push("/dashboard");
     }
-  }, [user, isUserLoading, router]);
-  
-  const createUserProfile = (user: User) => {
-    if (!firestore) return;
-    const userProfileRef = doc(firestore, `users/${user.uid}/profile`);
-    const userProfileData = {
-        name: user.displayName || user.email?.split('@')[0] || 'Anonymous User',
-        avatar: user.photoURL || `https://api.dicebear.com/8.x/bottts/svg?seed=${user.uid}`,
-        preferences: '{}',
-        walletAddresses: user.providerData.some(p => p.providerId === 'siwe') ? [user.uid] : [],
-    };
-    setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
+  }, [isConnected, address, router, hasAttemptedConnection]);
 
-    const userSettingsRef = doc(firestore, `users/${user.uid}/settings`);
-    const userSettingsData = {
-        theme: 'dark',
-        language: 'en',
-        notifications: {
-            transactions: true,
-            alerts: true,
-        },
-    };
-    setDocumentNonBlocking(userSettingsRef, userSettingsData, { merge: true });
-  };
-
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!auth) return;
-    setIsLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      createUserProfile(userCredential.user);
-      // Redirect will be handled by the useEffect
-    } catch (error: any) {
+  const handleConnectWallet = async () => {
+    if (isConnected) {
+      // If already connected, disconnect
+      disconnect();
+      localStorage.removeItem('walletConnected');
+      localStorage.removeItem('walletAddress');
       toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message,
+        title: "Wallet Disconnected",
+        description: "You have been disconnected from AndeChain.",
       });
-      setIsLoading(false);
+      return;
     }
-  };
 
-  const handleProviderSignIn = async (provider: GoogleAuthProvider | GithubAuthProvider) => {
-    if (!auth) return;
-    setIsLoading(true);
-    try {
-      const result = await signInWithPopup(auth, provider);
-      createUserProfile(result.user);
-       // Redirect will be handled by the useEffect
-    } catch (error: any) {
+    setHasAttemptedConnection(true);
+    
+    if (typeof window !== 'undefined' && !window.ethereum) {
       toast({
+        title: "Wallet Not Detected",
+        description: "Please install MetaMask to connect to AndeChain.",
         variant: "destructive",
-        title: "Sign-In Failed",
-        description: error.message,
       });
-    } finally {
-        setIsLoading(false);
+      window.open('https://metamask.io/download/', '_blank');
+      return;
     }
-  };
 
-  const handleSiweSignIn = async () => {
-    if (!auth || !address || !chainId) {
-        toast({
+    try {
+      console.log("Attempting to connect wallet...");
+      console.log("Window ethereum:", typeof window !== 'undefined' ? window.ethereum : 'undefined');
+      
+      await connect({ connector: injected() });
+      
+      toast({
+        title: "Wallet Connected",
+        description: "Welcome to AndeChain!",
+      });
+    } catch (error) {
+      console.error("Connection error:", error);
+      
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error name:", error.name);
+        
+        if (error.message.includes('User rejected') || error.message.includes('rejected')) {
+          toast({
+            title: "Connection Cancelled",
+            description: "You rejected the connection request.",
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: "Connection Failed",
+            description: error.message,
             variant: "destructive",
-            title: "Wallet Not Connected",
-            description: "Please connect your wallet before signing in with Ethereum.",
-        });
-        return;
-    }
-    setIsLoading(true);
-    try {
-      // 1. Get nonce from server
-      const nonce = await getNonce();
-
-      // 2. Create SIWE message
-      const message = new SiweMessage({
-        domain: window.location.host,
-        address,
-        statement: 'Sign in with Ethereum to AndeChain Nexus.',
-        uri: window.location.origin,
-        version: '1',
-        chainId,
-        nonce,
-      });
-
-      // 3. Sign message
-      const serializedMessage = JSON.stringify(message.prepareMessage());
-      const signature = await signMessageAsync({ message: serializedMessage });
-
-      // 4. Verify signature and get Firebase custom token
-      const { token } = await verifySignature({
-        message: serializedMessage,
-        signature,
-      });
-
-      // 5. Sign in with custom token
-      const userCredential = await signInWithCustomToken(auth, token);
-      createUserProfile(userCredential.user);
-
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "SIWE Failed",
-        description: error.message,
-      });
+          });
+        }
+      }
     } finally {
-        setIsLoading(false);
+      setHasAttemptedConnection(false);
     }
   };
-  
-  if (isUserLoading || user) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <Icons.logo className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-background to-muted/20">
       <div className="flex items-center mb-8">
-        <Icons.logo className="h-8 w-8 text-primary" />
-        <span className="ml-4 text-2xl font-bold">AndeChain Nexus</span>
+        <div className="h-10 w-10 bg-primary rounded-lg flex items-center justify-center">
+          <Zap className="h-6 w-6 text-primary-foreground" />
+        </div>
+        <span className="ml-4 text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          AndeChain
+        </span>
       </div>
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  className="pl-10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  className="pl-10"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
-            </Button>
-          </CardContent>
-        </form>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="relative w-full">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-           <Button variant="outline" className="w-full" onClick={handleSiweSignIn} disabled={isLoading || !address}>
-            <Icons.ethereum className="mr-2 h-4 w-4" />
-            Sign in with Ethereum
-          </Button>
-          <Button variant="outline" className="w-full" onClick={() => handleProviderSignIn(new GoogleAuthProvider())} disabled={isLoading}>
-             <Icons.google className="mr-2 h-4 w-4" />
-            Sign in with Google
-          </Button>
-           <Button variant="outline" className="w-full" onClick={() => handleProviderSignIn(new GithubAuthProvider())} disabled={isLoading}>
-            <Icons.gitHub className="mr-2 h-4 w-4" />
-            Sign in with GitHub
-          </Button>
-          <p className="px-8 text-center text-sm text-muted-foreground">
-            By clicking continue, you agree to our{" "}
-            <Link
-              href="/terms"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link
-              href="/privacy"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              Privacy Policy
-            </Link>
-            .
+
+      <div className="w-full max-w-md space-y-6">
+        {/* Welcome Message */}
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-bold">Welcome to AndeChain</h1>
+          <p className="text-muted-foreground">
+            Connect your wallet to access the decentralized ecosystem
           </p>
-        </CardFooter>
-      </Card>
+        </div>
+
+        {/* Wallet Connection Card */}
+        <Card className="w-full">
+          <CardHeader className="space-y-1 text-center pb-4">
+            <CardTitle className="text-xl flex items-center justify-center gap-2">
+              <Wallet className="h-5 w-5" />
+              {isConnected ? "Wallet Connected" : "Connect Wallet"}
+            </CardTitle>
+            <CardDescription>
+              {isConnected 
+                ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}`
+                : "Use MetaMask to securely connect to AndeChain"
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              onClick={handleConnectWallet}
+              disabled={isPending || isConnecting || isLoading}
+              className="w-full h-12 text-base"
+              size="lg"
+              variant={isConnected ? "outline" : "default"}
+            >
+              {(isPending || isConnecting || isLoading) && hasAttemptedConnection ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Connecting...
+                </>
+              ) : isConnected ? (
+                <>
+                  <Wallet className="mr-2 h-5 w-5" />
+                  Disconnect Wallet
+                </>
+              ) : (
+                <>
+                  <Wallet className="mr-2 h-5 w-5" />
+                  Connect MetaMask
+                </>
+              )}
+            </Button>
+
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Your wallet connection is secure and private. We never store your private keys.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+
+        {/* Features */}
+        <div className="grid grid-cols-1 gap-4 text-center">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+            100% Decentralized
+          </div>
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+            No Personal Data Required
+          </div>
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="h-2 w-2 bg-purple-500 rounded-full"></div>
+            Self-Custody Wallet
+          </div>
+        </div>
+
+        {/* Terms */}
+        <p className="text-center text-xs text-muted-foreground px-8">
+          By connecting your wallet, you agree to our{" "}
+          <Link
+            href="/terms"
+            className="underline underline-offset-4 hover:text-primary"
+          >
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            className="underline underline-offset-4 hover:text-primary"
+          >
+            Privacy Policy
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

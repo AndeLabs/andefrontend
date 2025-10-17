@@ -2,8 +2,8 @@
 "use client"
 
 import { useMemo, useState } from "react";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { format, subDays, addDays } from "date-fns";
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import { format, subDays } from "date-fns";
 
 import {
   Card,
@@ -12,7 +12,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ChartTooltipContent } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartConfig,
+} from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 
 const generateChartData = (days: number) => {
@@ -21,12 +26,18 @@ const generateChartData = (days: number) => {
     for (let i = days - 1; i >= 0; i--) {
         data.push({
             date: format(subDays(today, i), "MMM d"),
-            total: Math.floor(Math.random() * 2000) + 5000, // Random value around a base
+            total: Math.floor(Math.random() * 2000) + 5000,
         });
     }
     return data;
 };
 
+const chartConfig = {
+  total: {
+    label: "Portfolio Value",
+    color: "hsl(var(--chart-1))",
+  },
+} satisfies ChartConfig;
 
 export function OverviewChart() {
   const [timeRange, setTimeRange] = useState<number>(30);
@@ -49,15 +60,14 @@ export function OverviewChart() {
         </div>
       </CardHeader>
       <CardContent className="pl-2">
-        <ResponsiveContainer width="100%" height={280}>
+        <ChartContainer config={chartConfig} className="h-[280px] w-full">
           <BarChart data={data}>
-            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted/50" />
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis
               dataKey="date"
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
               tickLine={false}
               axisLine={false}
+              tickMargin={8}
               tickFormatter={(value, index) => {
                   if (data.length > 30) {
                       return index % 30 === 0 ? value : "";
@@ -69,21 +79,25 @@ export function OverviewChart() {
               }}
             />
             <YAxis
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
               tickLine={false}
               axisLine={false}
+              tickMargin={8}
               tickFormatter={(value) => `$${(value / 1000)}k`}
             />
-            <Tooltip
-                cursor={{ fill: 'hsl(var(--secondary))', radius: 8 }}
-                content={<ChartTooltipContent
-                    formatter={(value) => `$${(value as number).toLocaleString()}`}
-                 />}
-             />
-            <Bar dataKey="total" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+            <ChartTooltip 
+              content={
+                <ChartTooltipContent 
+                  formatter={(value) => `$${(value as number).toLocaleString()}`}
+                />
+              }
+            />
+            <Bar 
+              dataKey="total" 
+              fill="var(--color-total)" 
+              radius={[4, 4, 0, 0]} 
+            />
           </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   )

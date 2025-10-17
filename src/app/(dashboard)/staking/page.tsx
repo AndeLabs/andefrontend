@@ -15,7 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useStaking, tiers, lockPeriods } from '@/hooks/use-staking.tsx';
+import { Badge } from '@/components/ui/badge';
+import { useStaking, tiers, lockPeriods } from '@/hooks/use-staking';
 
 export default function StakingPage() {
   const {
@@ -85,7 +86,7 @@ export default function StakingPage() {
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center">
                     <span className="pr-4 text-sm font-medium text-muted-foreground">
-                      AND
+                      ANDE
                     </span>
                   </div>
                 </div>
@@ -148,12 +149,12 @@ export default function StakingPage() {
               <div className="flex justify-between text-sm">
                 <Gift className="w-4 h-4 mr-2 text-muted-foreground" />
                 <span className="text-muted-foreground">Est. Monthly Reward</span>
-                <span className="font-medium">{monthlyReward.toFixed(4)} AND</span>
+                <span className="font-medium">{monthlyReward.toFixed(4)} ANDE</span>
               </div>
               <div className="flex justify-between text-sm">
                 <Gift className="w-4 h-4 mr-2 text-muted-foreground" />
                 <span className="text-muted-foreground">Est. Yearly Reward</span>
-                <span className="font-medium">{yearlyReward.toFixed(4)} AND</span>
+                <span className="font-medium">{yearlyReward.toFixed(4)} ANDE</span>
               </div>
             </div>
             <Button className="w-full" size="lg">
@@ -171,7 +172,7 @@ export default function StakingPage() {
                     <div className="p-4 rounded-lg border">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="font-bold">1,500.00 AND</p>
+                                <p className="font-bold">1,500.00 ANDE</p>
                                 <Badge variant="secondary" className="mt-1">{tiers.find(t => t.id === 'governance')?.name}</Badge>
                             </div>
                             <Button size="sm" variant="outline">Unstake</Button>
@@ -180,7 +181,7 @@ export default function StakingPage() {
                         <div className="text-xs text-muted-foreground space-y-1">
                             <p>Lock Period: 12 months</p>
                             <p>Unlocks in: 8 months, 12 days</p>
-                            <p className="font-medium text-green-500">Rewards to claim: 45.12 AND</p>
+                            <p className="font-medium text-green-500">Rewards to claim: 45.12 ANDE</p>
                         </div>
                         <Button size="sm" className="w-full mt-3">Claim Rewards</Button>
                     </div>

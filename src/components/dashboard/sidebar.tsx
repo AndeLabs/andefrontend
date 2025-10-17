@@ -9,6 +9,9 @@ import {
   Wallet,
   Landmark,
   Gavel,
+  Code2,
+  Activity,
+  Droplet,
 } from 'lucide-react';
 
 import { Icons } from '../icons';
@@ -26,9 +29,12 @@ import { Separator } from '../ui/separator';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/network', icon: Activity, label: 'Network Status' },
+  { href: '/faucet', icon: Droplet, label: 'Faucet' },
   { href: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { href: '/staking', icon: Landmark, label: 'Staking' },
   { href: '/governance', icon: Gavel, label: 'Governance' },
+  { href: '/developer', icon: Code2, label: 'Developer' },
   { href: '#', icon: Wallet, label: 'Wallets' },
   { href: '#', icon: Settings, label: 'Settings' },
 ];

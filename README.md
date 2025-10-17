@@ -86,13 +86,60 @@ graph TD
     - **Firestore**: Base de datos NoSQL para almacenar perfiles de usuario, configuraciones y metadatos.
     - **Genkit**: Utilizado para crear flujos de backend seguros, como la verificación de SIWE.
 
+## 💳 Conectar tu Wallet a AndeChain
+
+### Paso 1: Instalar MetaMask
+
+1. Visita [metamask.io/download](https://metamask.io/download/)
+2. Descarga e instala la extensión para tu navegador
+3. Crea una nueva wallet o importa una existente
+
+### Paso 2: Agregar la Red AndeChain
+
+Opción A - **Automático (Recomendado)**:
+1. Haz clic en "Connect Wallet" en el dashboard
+2. MetaMask te solicitará agregar la red AndeChain automáticamente
+3. Confirma la acción
+
+Opción B - **Manual**:
+1. Abre MetaMask
+2. Haz clic en el menú de redes (arriba a la izquierda)
+3. Selecciona "Add Network" o "Add a network manually"
+4. Ingresa los siguientes datos:
+
+```
+Network Name: AndeChain Local
+RPC URL: http://localhost:8545
+Chain ID: 1234
+Currency Symbol: ANDE
+Block Explorer URL: http://localhost:8545
+```
+
+### Paso 3: Conectar al Dashboard
+
+1. Ve al dashboard de AndeChain
+2. Haz clic en el botón "Connect Wallet" en la esquina superior derecha
+3. MetaMask se abrirá automáticamente
+4. Selecciona la cuenta que deseas conectar
+5. Haz clic en "Next" y luego "Connect"
+
+### Paso 4: Obtener Tokens de Prueba
+
+1. Una vez conectado, ve a la página "Faucet" en el menú lateral
+2. Haz clic en "Request 10 ANDE Tokens"
+3. Los tokens se enviarán instantáneamente a tu wallet
+4. Puedes solicitar más tokens cada 60 segundos
+
 ## 🔧 Guía de Solución de Problemas
 
 - **Error: `Module not found`**:
   Asegúrate de haber ejecutado `pnpm install`. Si el error persiste, elimina la carpeta `.next` y `node_modules` y vuelve a instalar las dependencias.
 
-- **Error: `Please call "createWeb3Modal" before using "useWeb3Modal" hook`**:
-  Verifica que la variable de entorno `NEXT_PUBLIC_WC_PROJECT_ID` esté correctamente configurada en tu archivo `.env.local`. Sin esta variable, Web3Modal no se inicializa.
+- **Error: "Wallet Not Detected"**:
+  Verifica que tengas MetaMask u otra wallet Web3 instalada en tu navegador. Si acabas de instalar MetaMask, recarga la página.
+
+- **Error: "Connection Failed"**:
+  Asegura que tu nodo local de AndeChain esté corriendo en `http://localhost:8545`. Verifica también que la red esté agregada correctamente en MetaMask.
 
 - **Errores de Permisos en Firestore**:
   Asegúrate de que tus [Reglas de Seguridad de Firestore](firestore.rules) estén correctamente desplegadas y permitan las operaciones que estás intentando realizar.
