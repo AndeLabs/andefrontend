@@ -1,22 +1,42 @@
+/**
+ * Logger Utility
+ * Simple logging wrapper for development
+ * Disabled by default to reduce console noise
+ */
+
 const isDevelopment = process.env.NODE_ENV === 'development';
+const isDebugEnabled = process.env.NEXT_PUBLIC_DEBUG === 'true';
+
+// Only log if explicitly enabled
+const shouldLog = isDevelopment && isDebugEnabled;
 
 export const logger = {
-  log: (...args: any[]) => {
-    if (isDevelopment) {
-      console.log(...args);
+  info: (message: string, ...args: any[]) => {
+    if (shouldLog) {
+      console.log(`ℹ️ ${message}`, ...args);
     }
   },
-  error: (...args: any[]) => {
-    console.error(...args);
-  },
-  warn: (...args: any[]) => {
-    if (isDevelopment) {
-      console.warn(...args);
+
+  warn: (message: string, ...args: any[]) => {
+    if (shouldLog) {
+      console.warn(`⚠️ ${message}`, ...args);
     }
   },
-  info: (...args: any[]) => {
-    if (isDevelopment) {
-      console.info(...args);
+
+  error: (message: string, ...args: any[]) => {
+    // Always log errors
+    console.error(`❌ ${message}`, ...args);
+  },
+
+  log: (message: string, ...args: any[]) => {
+    if (shouldLog) {
+      console.log(message, ...args);
+    }
+  },
+
+  debug: (message: string, ...args: any[]) => {
+    if (shouldLog) {
+      console.debug(`🐛 ${message}`, ...args);
     }
   },
 };
