@@ -40,15 +40,10 @@ export default function LandingPage() {
           <span className="ml-2 text-lg font-bold">AndeChain Nexus</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Button variant="ghost" asChild>
-            <Link href="/login" className="text-sm font-medium hover:underline underline-offset-4" prefetch={false}>
-              Login
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/dashboard">Launch App</Link>
-          </Button>
-        </nav>
+           <Button asChild>
+             <Link href="/dashboard">Launch App</Link>
+           </Button>
+         </nav>
       </header>
       <main className="flex-1">
         <section className="relative w-full py-20 md:py-32 lg:py-40 overflow-hidden">

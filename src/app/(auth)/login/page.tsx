@@ -39,13 +39,11 @@ export default function LoginPage() {
   }, [isConnected]);
 
   useEffect(() => {
-    if (isConnected && address && hasAttemptedConnection) {
-      // Store wallet connection in localStorage for persistence
-      localStorage.setItem('walletConnected', 'true');
-      localStorage.setItem('walletAddress', address);
+    // If already connected, redirect immediately to dashboard
+    if (isConnected && address) {
       router.push("/dashboard");
     }
-  }, [isConnected, address, router, hasAttemptedConnection]);
+  }, [isConnected, address, router]);
 
   const handleConnectWallet = async () => {
     if (isConnected) {
