@@ -1,5 +1,6 @@
 'use client';
 
+import { useBalanceRefresh } from '@/hooks/use-balance-refresh';
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { parseEther, formatEther, isAddress } from 'viem';
 import { Droplet, CheckCircle2, AlertCircle, Loader2, Wallet, Copy, ExternalLink, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -23,10 +24,7 @@ interface FaucetRequest {
 
 export default function FaucetPage() {
   const { address, isConnected } = useAccount();
-  const { data: balance } = useBalance({
-    address: address,
-    chainId: andechain.id,
-  });
+  const { balance, refetch: refetchBalance } = useBalanceRefresh(2000);
   const { toast } = useToast();
   const FIXED_AMOUNT = '10'; // 10 ANDE per request
   const [loading, setLoading] = useState(false);
@@ -50,7 +48,10 @@ export default function FaucetPage() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/', {
+      const faucetUrl = process.env.NEXT_PUBLIC_FAUCET_URL || 'http://localhost:3001';
+      const explorerUrl = process.env.NEXT_PUBLIC_EXPLORER_URL || 'http://localhost:4000';
+      
+      const response = await fetch(`${faucetUrl}/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +63,7 @@ export default function FaucetPage() {
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         const newRequest: FaucetRequest = {
           address: targetAddress,
           amount: FIXED_AMOUNT,
@@ -73,17 +74,21 @@ export default function FaucetPage() {
         setRecentRequests((prev) => [newRequest, ...prev].slice(0, 5));
 
         toast({
-          title: 'Success!',
-          description: `${FIXED_AMOUNT} ANDE sent to ${targetAddress.slice(0, 10)}...${targetAddress.slice(-8)}`,
+          title: '✅ Transaction Sent!',
+          description: `${FIXED_AMOUNT} ANDE sent to ${targetAddress.slice(0, 10)}...${targetAddress.slice(-8)}. TX: ${data.txHash.slice(0, 10)}...`,
         });
+        
+        setTimeout(() => {
+          refetchBalance();
+        }, 3000);
         setCustomAddress('');
       } else {
-        throw new Error(data.error || 'Failed to request tokens');
+        throw new Error(data.message || data.error || 'Failed to request tokens');
       }
     } catch (error) {
       console.error('Faucet error:', error);
       toast({
-        title: 'Error',
+        title: '❌ Error',
         description: error instanceof Error ? error.message : 'Failed to request tokens from faucet',
         variant: 'destructive',
       });
@@ -92,11 +97,11 @@ export default function FaucetPage() {
     }
   };
 
-  const copyAddress = (addr: string) => {
-    navigator.clipboard.writeText(addr);
+   const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
     toast({
-      title: 'Copied!',
-      description: 'Address copied to clipboard',
+      title: '✅ Copied!',
+      description: `${label} copied to clipboard`,
     });
   };
 
@@ -135,7 +140,7 @@ export default function FaucetPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => copyAddress(address)}
+                      onClick={() => copyToClipboard(address, 'Address')}
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
@@ -286,7 +291,7 @@ export default function FaucetPage() {
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
-                        onClick={() => copyAddress(req.address)}
+                        onClick={() => copyToClipboard(req.address, 'Address')}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -298,15 +303,32 @@ export default function FaucetPage() {
                   <div className="text-right">
                     <Badge variant="secondary">+{req.amount} ANDE</Badge>
                     {req.txHash && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 mt-1"
-                        onClick={() => copyAddress(req.txHash!)}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Tx
-                      </Button>
+                      <div className="flex gap-1 mt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() => copyToClipboard(req.txHash!, 'Transaction hash')}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          <span className="text-xs">Copy</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2"
+                          asChild
+                        >
+                          <a
+                            href={`${process.env.NEXT_PUBLIC_EXPLORER_URL || 'http://localhost:4000'}/tx/${req.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            <span className="text-xs">View</span>
+                          </a>
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>
