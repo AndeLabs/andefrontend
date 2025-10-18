@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useBalance, useWaitForTransactionReceipt, useSendTransaction } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt, useSendTransaction } from 'wagmi';
+import { useAndeBalance } from '@/hooks/use-ande-balance';
+import { useGasCheck } from '@/hooks/use-gas-check';
 import { parseEther, parseUnits, isAddress, encodeFunctionData, type Address, type Hash } from 'viem';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,7 +53,8 @@ const ERC20_TRANSFER_ABI = [
 
 export default function TransactionsPage() {
   const { address, isConnected } = useAccount();
-  const { data: nativeBalance } = useBalance({ address, chainId: andechain.id });
+  const { balance: nativeBalance } = useAndeBalance();
+  const { getGasErrorMessage, hasEnoughGas, formattedNativeBalance } = useGasCheck();
   const { toast } = useToast();
 
   // Transaction history
@@ -188,13 +191,29 @@ export default function TransactionsPage() {
   // Handle errors
   useEffect(() => {
     if (sendError) {
+      console.error('Send transaction error:', sendError);
+      
+      let errorMessage = sendError.message || 'Failed to send transaction';
+      
+      // Parse common error patterns
+      if (errorMessage.includes('insufficient funds') || errorMessage.includes('insufficient balance')) {
+        errorMessage = 'Insufficient ANDE for gas fees. Visit the faucet to get more ANDE.';
+      } else if (errorMessage.includes('user rejected') || errorMessage.includes('User denied')) {
+        errorMessage = 'Transaction was rejected in your wallet.';
+      } else if (errorMessage.includes('execution reverted')) {
+        errorMessage = 'Transaction would fail. Check your balance and gas.';
+      } else if (errorMessage.includes('gasLimit')) {
+        errorMessage = 'Gas estimation failed. You may not have enough ANDE for gas fees.';
+      }
+      
       toast({
         title: '❌ Transaction Failed',
-        description: sendError.message || 'Failed to send transaction',
+        description: errorMessage,
         variant: 'destructive',
       });
     }
     if (confirmError) {
+      console.error('Transaction confirmation error:', confirmError);
       toast({
         title: '⚠️ Confirmation Error',
         description: confirmError.message || 'Transaction may have failed',
@@ -208,6 +227,17 @@ export default function TransactionsPage() {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if user has enough gas
+    const gasError = getGasErrorMessage();
+    if (gasError) {
+      toast({
+        title: '⚠️ Insufficient Gas',
+        description: gasError + ' Visit the faucet to get ANDE for gas fees.',
         variant: 'destructive',
       });
       return;
@@ -253,35 +283,60 @@ export default function TransactionsPage() {
         return;
       }
 
-      // Native token transfer
+      console.log('Sending transaction:', {
+        token: selectedToken.symbol,
+        tokenAddress: selectedToken.address,
+        to: sendToAddress,
+        amount: sendAmount,
+        amountBigInt: amountBigInt.toString(),
+        balance: selectedToken.balanceFormatted,
+        decimals: selectedToken.decimals,
+      });
+
+      // ✅ ANDE es NATIVO en sovereign rollup - usar value field
       if (selectedToken.isNative) {
-        const txParams: any = {
+        console.log('Native ANDE transfer:', {
+          to: sendToAddress,
+          value: amountBigInt.toString(),
+        });
+
+        sendTransaction({
           to: sendToAddress as Address,
           value: amountBigInt,
-        };
-        
-        // Only include data if it's not empty
-        if (sendData && sendData.trim() !== '' && sendData !== '0x') {
-          txParams.data = sendData.startsWith('0x') ? sendData : `0x${sendData}`;
-        }
-        
-        sendTransaction(txParams);
+        });
       } else {
-        // ERC20 token transfer
+        // Fallback para otros tokens ERC-20
+        const transferData = encodeFunctionData({
+          abi: ERC20_TRANSFER_ABI,
+          functionName: 'transfer',
+          args: [sendToAddress as Address, amountBigInt],
+        }) as `0x${string}`;
+
         sendTransaction({
           to: selectedToken.address,
-          data: encodeFunctionData({
-            abi: ERC20_TRANSFER_ABI,
-            functionName: 'transfer',
-            args: [sendToAddress as Address, amountBigInt],
-          }) as `0x${string}`,
+          data: transferData,
         });
       }
     } catch (error) {
       console.error('Send error:', error);
+      
+      let errorMessage = 'Failed to send transaction';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Parse common errors
+        if (errorMessage.includes('insufficient funds')) {
+          errorMessage = 'Insufficient ANDE for gas fees. Get more from the faucet.';
+        } else if (errorMessage.includes('user rejected')) {
+          errorMessage = 'Transaction was rejected in wallet.';
+        } else if (errorMessage.includes('execution reverted')) {
+          errorMessage = 'Transaction failed: contract execution reverted. Check balance and gas.';
+        }
+      }
+      
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to send transaction',
+        title: '❌ Transaction Failed',
+        description: errorMessage,
         variant: 'destructive',
       });
     }
@@ -335,6 +390,39 @@ export default function TransactionsPage() {
           Send tokens and manage your transaction history on {andechain.name}
         </p>
       </div>
+
+      {/* Gas Warning */}
+      {!hasEnoughGas && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>⚠️ Insufficient Gas for Transactions</AlertTitle>
+          <AlertDescription>
+            {getGasErrorMessage()}
+            {' '}
+            <a 
+              href="/faucet" 
+              className="underline font-medium hover:text-foreground"
+            >
+              Get ANDE from the faucet
+            </a>
+            {' '}to pay for transaction fees.
+            <div className="mt-2 text-xs">
+              Native balance for gas: {formattedNativeBalance} ANDE
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Success Alert */}
+      {showSuccess && (
+        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <AlertTitle className="text-green-700 dark:text-green-400">Transaction Confirmed!</AlertTitle>
+          <AlertDescription className="text-green-600 dark:text-green-500">
+            Your transaction has been successfully confirmed on the blockchain.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Wallet Overview */}
       <div className="grid gap-6 md:grid-cols-3">
