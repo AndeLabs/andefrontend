@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useWalletConnection } from '@/hooks/use-wallet-connection';
-import { useBalance } from 'wagmi';
 import { formatEther } from 'viem';
 import { andechain } from '@/lib/chains';
+import { useAndeBalance } from '@/hooks/use-ande-balance';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,13 +71,7 @@ export function WalletButton({
     isLoading,
   } = useWalletConnection();
 
-  const { data: balance } = useBalance({
-    address,
-    chainId: andechain.id,
-    query: {
-      enabled: !!address && isCorrectNetwork,
-    },
-  });
+  const { balance } = useAndeBalance();
 
   // Handle successful connection
   useEffect(() => {
@@ -233,7 +227,7 @@ export function WalletButton({
           <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm">
             <Wallet className="h-4 w-4" />
             <span className="font-medium">
-              {parseFloat(formatEther(balance.value)).toFixed(4)} {balance.symbol}
+              {parseFloat(balance.formatted).toFixed(4)} {balance.symbol}
             </span>
           </div>
         )}
@@ -268,7 +262,7 @@ export function WalletButton({
               <div className="px-2 py-2">
                 <p className="text-xs text-muted-foreground mb-1">Balance</p>
                 <p className="text-sm font-semibold">
-                  {parseFloat(formatEther(balance.value)).toFixed(6)} {balance.symbol}
+                  {parseFloat(balance.formatted).toFixed(6)} {balance.symbol}
                 </p>
               </div>
             )}

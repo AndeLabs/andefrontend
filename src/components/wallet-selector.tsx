@@ -77,7 +77,7 @@ export function WalletSelector({ trigger, onConnected }: WalletSelectorProps) {
          return;
        }
 
-      await connect(walletId);
+      await connect();
       setOpen(false);
       onConnected?.();
     } catch (error) {

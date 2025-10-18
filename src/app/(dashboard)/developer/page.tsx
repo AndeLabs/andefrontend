@@ -258,12 +258,13 @@ export default function DeveloperPage() {
           throw new Error('Wallet not connected');
         }
 
-        const hash = await walletClient.writeContract({
+        const hash = await (walletClient.writeContract as any)({
           address: interactAddress as `0x${string}`,
           abi,
           functionName: selectedFunction,
           args: params,
           account: address!,
+          chain: andechain,
         });
 
         toast({
@@ -329,7 +330,7 @@ export default function DeveloperPage() {
         abi,
         functionName,
         args: params,
-      });
+      } as any);
 
       setEncodedData(encoded);
       toast({

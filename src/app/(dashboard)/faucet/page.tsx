@@ -1,7 +1,7 @@
 'use client';
 
-import { useBalanceRefresh } from '@/hooks/use-balance-refresh';
 import { useState } from 'react';
+import { useAndeBalance } from '@/hooks/use-ande-balance';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAccount } from 'wagmi';
 import { parseEther, formatEther, isAddress } from 'viem';
-import { Droplet, CheckCircle2, AlertCircle, Loader2, Wallet, Copy, ExternalLink, History } from 'lucide-react';
+import { Droplet, CheckCircle2, AlertCircle, Loader2, Wallet, Copy, ExternalLink, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { andechain } from '@/lib/chains';
 import { Separator } from '@/components/ui/separator';
@@ -24,9 +24,9 @@ interface FaucetRequest {
 
 export default function FaucetPage() {
   const { address, isConnected } = useAccount();
-  const { balance, refetch: refetchBalance } = useBalanceRefresh(2000);
+  const { balance, refetch: refetchBalance } = useAndeBalance();
   const { toast } = useToast();
-  const FIXED_AMOUNT = '10'; // 10 ANDE per request
+  const FIXED_AMOUNT = '500000'; // 500,000 ANDE per request
   const [loading, setLoading] = useState(false);
   const [customAddress, setCustomAddress] = useState('');
   const [recentRequests, setRecentRequests] = useState<FaucetRequest[]>([]);
@@ -80,7 +80,7 @@ export default function FaucetPage() {
         
         setTimeout(() => {
           refetchBalance();
-        }, 3000);
+        }, 2000);
         setCustomAddress('');
       } else {
         throw new Error(data.message || data.error || 'Failed to request tokens');
@@ -149,7 +149,7 @@ export default function FaucetPage() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Current Balance:</span>
                       <span className="font-semibold">
-                        {parseFloat(formatEther(balance.value)).toFixed(4)} {balance.symbol}
+                        {parseFloat(balance.formatted).toFixed(4)} {balance.symbol}
                       </span>
                     </div>
                   )}
@@ -248,15 +248,15 @@ export default function FaucetPage() {
                 </p>
               </div>
               <div className="flex items-start gap-2 text-sm">
-                <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <p className="text-muted-foreground">
-                  Test tokens have no real value
+                  ANDE is the native currency (like ETH on Ethereum)
                 </p>
               </div>
               <div className="flex items-start gap-2 text-sm">
-                <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <p className="text-muted-foreground">
-                  Faucet must be running on port 3001
+                  Balance shows automatically (native currency)
                 </p>
               </div>
             </CardContent>

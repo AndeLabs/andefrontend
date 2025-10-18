@@ -271,12 +271,12 @@ export function useTransactionHistory() {
             if (tx.hash === hash) {
               return {
                 ...tx,
-                status: receipt.status === 'success' ? 'success' : 'failed',
+                status: (receipt.status === 'success' ? 'success' : 'failed') as 'success' | 'failed',
                 gasUsed: receipt.gasUsed,
                 blockNumber: receipt.blockNumber,
                 blockHash: receipt.blockHash,
                 timestamp: Number(block.timestamp) * 1000,
-              };
+              } as TransactionDetailed;
             }
             return tx;
           });

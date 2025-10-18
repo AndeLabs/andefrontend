@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount } from 'wagmi';
+import { useAndeBalance } from '@/hooks/use-ande-balance';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,7 +62,7 @@ interface VoteHistory {
 
 export default function GovernancePage() {
   const { address, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address, chainId: andechain.id });
+  const { balance } = useAndeBalance();
   const { toast } = useToast();
 
   // State

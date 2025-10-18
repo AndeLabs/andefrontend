@@ -28,6 +28,7 @@ export interface ContractAddresses {
   AndeGovernor: Address;
   AndeSequencerRegistry: Address;
   WAndeVault: Address;
+  AndeNativeStaking?: Address;
   AndeStaking?: Address;
   AndeDEX?: Address;
   AndeBridge?: Address;
@@ -38,16 +39,17 @@ export interface ContractAddresses {
 // CONSTANTS
 // ==========================================
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
 
 // ==========================================
 // CONTRACT ADDRESSES BY ENVIRONMENT
 // ==========================================
 
 const LOCAL_CONTRACTS: ContractAddresses = {
-  ANDEToken: '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853' as Address,
+  ANDEToken: '0x7a2088a1bFc9d81c55368AE168C2C02570cB814F' as Address, // ANDETokenDuality Proxy
   AndeGovernor: ZERO_ADDRESS,
   AndeSequencerRegistry: ZERO_ADDRESS,
+  AndeNativeStaking: '0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E' as Address,
   WAndeVault: ZERO_ADDRESS,
 };
 
@@ -227,9 +229,9 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   // Log contract addresses in development
   console.group('🔗 AndeChain Contract Addresses');
   Object.entries(ANDECHAIN_CONTRACTS).forEach(([name, address]) => {
-    const deployed = isContractDeployed(address);
+    const deployed = address ? isContractDeployed(address) : false;
     console.log(
-      `${name}: ${address} ${deployed ? '✅' : '❌ (not deployed)'}`
+      `${name}: ${address || 'N/A'} ${deployed ? '✅' : '❌ (not deployed)'}`
     );
   });
   console.groupEnd();
@@ -248,3 +250,20 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     validation,
   };
 }
+
+// ==========================================
+// CONVENIENCE EXPORTS
+// ==========================================
+
+/**
+ * Individual contract address exports for direct import
+ * Usage: import { ANDE_TOKEN_ADDRESS } from '@/contracts/addresses'
+ */
+export const ANDE_TOKEN_ADDRESS = ANDECHAIN_CONTRACTS.ANDEToken;
+export const ANDE_GOVERNOR_ADDRESS = ANDECHAIN_CONTRACTS.AndeGovernor;
+export const ANDE_SEQUENCER_REGISTRY_ADDRESS = ANDECHAIN_CONTRACTS.AndeSequencerRegistry;
+export const WANDE_VAULT_ADDRESS = ANDECHAIN_CONTRACTS.WAndeVault;
+export const ANDE_NATIVE_STAKING_ADDRESS = ANDECHAIN_CONTRACTS.AndeNativeStaking || ZERO_ADDRESS;
+export const ANDE_STAKING_ADDRESS = ANDECHAIN_CONTRACTS.AndeStaking || ZERO_ADDRESS;
+export const ANDE_DEX_ADDRESS = ANDECHAIN_CONTRACTS.AndeDEX || ZERO_ADDRESS;
+export const ANDE_BRIDGE_ADDRESS = ANDECHAIN_CONTRACTS.AndeBridge || ZERO_ADDRESS;

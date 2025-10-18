@@ -224,6 +224,8 @@ export class BlockchainService {
         abi: ANDETokenABI,
         functionName: 'transfer',
         args: [to, parseEther(amount)],
+        account: this.walletClient.account!,
+        chain: andechain,
       });
 
       return hash;
@@ -318,6 +320,8 @@ export class BlockchainService {
         abi: AndeGovernorABI,
         functionName: 'castVote',
         args: [proposalId, support],
+        account: this.walletClient.account!,
+        chain: andechain,
       });
 
       return hash;
@@ -349,7 +353,7 @@ export class BlockchainService {
       const hash = await this.walletClient.deployContract({
         abi,
         bytecode,
-        args,
+        args: args || [],
         account,
         chain: andechain,
       });
@@ -382,7 +386,7 @@ export class BlockchainService {
         address,
         abi,
         functionName,
-        args,
+        args: args || [],
       });
     } catch (error) {
       console.error(`Error reading contract ${functionName}:`, error);
@@ -405,7 +409,8 @@ export class BlockchainService {
         address,
         abi,
         functionName,
-        args,
+        args: args || [],
+        account: this.walletClient.account!,
         chain: andechain,
       });
 

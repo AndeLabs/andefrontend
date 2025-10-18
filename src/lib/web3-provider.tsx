@@ -119,15 +119,20 @@ function WagmiConnectionHandler({ children }: { children: React.ReactNode }) {
 
     // Registrar listeners en window.ethereum
     if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-      window.ethereum.on('disconnect', handleDisconnect);
+      const ethereum = window.ethereum;
+      if (ethereum.on) {
+        ethereum.on('accountsChanged', handleAccountsChanged);
+        ethereum.on('chainChanged', handleChainChanged);
+        ethereum.on('disconnect', handleDisconnect);
 
-      return () => {
-        window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum?.removeListener('chainChanged', handleChainChanged);
-        window.ethereum?.removeListener('disconnect', handleDisconnect);
-      };
+        return () => {
+          if (ethereum.removeListener) {
+            ethereum.removeListener('accountsChanged', handleAccountsChanged);
+            ethereum.removeListener('chainChanged', handleChainChanged);
+            ethereum.removeListener('disconnect', handleDisconnect);
+          }
+        };
+      }
     }
   }, []);
 

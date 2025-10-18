@@ -46,7 +46,7 @@ export function TokenSelector({ selectedToken, onSelectToken, disabled }: TokenS
     removeToken,
   } = useWalletTokens();
 
-  const allTokens = nativeBalance ? [nativeBalance, ...tokens] : tokens;
+  const allTokens = nativeBalance ? [nativeBalance, ...tokens.filter(t => t.address.toLowerCase() !== nativeBalance.address.toLowerCase())] : tokens;
 
   const handleSelectToken = (token: TokenInfo) => {
     onSelectToken(token);
