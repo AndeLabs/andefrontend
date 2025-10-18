@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAccount, useBalance, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useState } from 'react';
+import { useAccount } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
+import { useAndeBalance } from '@/hooks/use-ande-balance';
+import { useGasCheck } from '@/hooks/use-gas-check';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +14,17 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useStaking, StakingLevel, LockPeriod } from '@/hooks/use-staking';
 import { andechain } from '@/lib/chains';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Landmark,
   TrendingUp,
@@ -30,643 +41,1070 @@ import {
   Calendar,
   Trophy,
   Zap,
+  Shield,
+  Users,
+  Info,
+  ExternalLink,
+  Copy,
+  RefreshCw,
 } from 'lucide-react';
-
-interface StakingStats {
-  totalStaked: string;
-  myStaked: string;
-  rewards: string;
-  apr: number;
-  lockPeriod: number;
-  minStake: string;
-}
-
-interface StakePosition {
-  amount: string;
-  startTime: number;
-  unlockTime: number;
-  rewards: string;
-  isLocked: boolean;
-}
 
 export default function StakingPage() {
   const { address, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address, chainId: andechain.id });
+  const { balance } = useAndeBalance();
+  const { getGasErrorMessage, hasEnoughGas, formattedNativeBalance } = useGasCheck();
   const { toast } = useToast();
 
-  // Staking state
-  const [stakeAmount, setStakeAmount] = useState('');
-  const [unstakeAmount, setUnstakeAmount] = useState('');
-  const [isStaking, setIsStaking] = useState(false);
-  const [isUnstaking, setIsUnstaking] = useState(false);
-  const [isClaiming, setIsClaiming] = useState(false);
+  // Staking hook
+  const {
+    stakeInfo,
+    poolStats,
+    liquidityAPY,
+    governanceAPY,
+    sequencerAPY,
+    minLiquidityStake,
+    minGovernanceStake,
+    minSequencerStake,
+    pendingRewards,
+    allowance,
+    needsApproval,
+    approve,
+    stakeLiquidity,
+    stakeGovernance,
+    stakeSequencer,
+    unstake,
+    claimRewards,
+    refreshData,
+    isApproving,
+    isStaking,
+    isUnstaking,
+    isClaiming,
+    isConfirming,
+    approveSuccess,
+    liquiditySuccess,
+    governanceSuccess,
+    sequencerSuccess,
+    unstakeSuccess,
+    claimSuccess,
+    LOCK_PERIOD_NAMES,
+  } = useStaking();
 
-  // Mock staking stats (en producción, esto vendría del contrato)
-  const [stakingStats, setStakingStats] = useState<StakingStats>({
-    totalStaked: '1250000',
-    myStaked: '0',
-    rewards: '0',
-    apr: 12.5,
-    lockPeriod: 30,
-    minStake: '10',
-  });
+  // Form state
+  const [liquidityAmount, setLiquidityAmount] = useState('');
+  const [governanceAmount, setGovernanceAmount] = useState('');
+  const [selectedLockPeriod, setSelectedLockPeriod] = useState<LockPeriod>(LockPeriod.TWELVE_MONTHS);
+  const [sequencerAmount, setSequencerAmount] = useState('');
 
-  // Mock stake positions (en producción, esto vendría del contrato)
-  const [positions, setPositions] = useState<StakePosition[]>([]);
-
-  useEffect(() => {
-    // Simular carga de posiciones de staking
-    if (isConnected && address) {
-      // En producción, cargar desde el contrato
-      const mockPosition: StakePosition = {
-        amount: '100',
-        startTime: Date.now() - 15 * 24 * 60 * 60 * 1000, // 15 días atrás
-        unlockTime: Date.now() + 15 * 24 * 60 * 60 * 1000, // 15 días adelante
-        rewards: '1.56',
-        isLocked: true,
-      };
-      
-      setPositions([mockPosition]);
-      setStakingStats(prev => ({ ...prev, myStaked: '100', rewards: '1.56' }));
-    }
-  }, [isConnected, address]);
-
-  const handleStake = async () => {
-    if (!stakeAmount || parseFloat(stakeAmount) < parseFloat(stakingStats.minStake)) {
+  // Handle approve actions
+  const handleApproveLiquidity = async () => {
+    // Check gas first
+    const gasError = getGasErrorMessage();
+    if (gasError) {
       toast({
-        title: 'Invalid Amount',
-        description: `Minimum stake is ${stakingStats.minStake} ANDE`,
+        title: '⚠️ Insufficient Gas',
+        description: gasError,
         variant: 'destructive',
       });
       return;
     }
 
-    setIsStaking(true);
     try {
-      // Simulación de staking (en producción, llamar al contrato)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const newPosition: StakePosition = {
-        amount: stakeAmount,
-        startTime: Date.now(),
-        unlockTime: Date.now() + stakingStats.lockPeriod * 24 * 60 * 60 * 1000,
-        rewards: '0',
-        isLocked: true,
-      };
-
-      setPositions(prev => [...prev, newPosition]);
-      setStakingStats(prev => ({
-        ...prev,
-        myStaked: (parseFloat(prev.myStaked) + parseFloat(stakeAmount)).toString(),
-        totalStaked: (parseFloat(prev.totalStaked) + parseFloat(stakeAmount)).toString(),
-      }));
-
+      await approve(liquidityAmount);
       toast({
-        title: '✅ Staking Successful',
-        description: `Successfully staked ${stakeAmount} ANDE`,
+        title: '🔐 Approval Submitted',
+        description: 'Token approval transaction has been submitted',
       });
-
-      setStakeAmount('');
-    } catch (error) {
-      console.error('Stake error:', error);
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to approve tokens';
+      console.error('Approval error:', error);
       toast({
-        title: 'Staking Failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        title: '❌ Approval Failed',
+        description: errorMsg.includes('user rejected') 
+          ? 'Transaction was rejected' 
+          : errorMsg,
         variant: 'destructive',
       });
-    } finally {
-      setIsStaking(false);
     }
   };
 
-  const handleUnstake = async (position: StakePosition) => {
-    if (position.isLocked && position.unlockTime > Date.now()) {
+  const handleApproveGovernance = async () => {
+    // Check gas first
+    const gasError = getGasErrorMessage();
+    if (gasError) {
       toast({
-        title: 'Position Locked',
-        description: 'You cannot unstake before the lock period ends',
+        title: '⚠️ Insufficient Gas',
+        description: gasError,
         variant: 'destructive',
       });
       return;
     }
 
-    setIsUnstaking(true);
     try {
-      // Simulación de unstaking (en producción, llamar al contrato)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      setPositions(prev => prev.filter(p => p !== position));
-      setStakingStats(prev => ({
-        ...prev,
-        myStaked: (parseFloat(prev.myStaked) - parseFloat(position.amount)).toString(),
-        totalStaked: (parseFloat(prev.totalStaked) - parseFloat(position.amount)).toString(),
-        rewards: (parseFloat(prev.rewards) - parseFloat(position.rewards)).toString(),
-      }));
-
+      await approve(governanceAmount);
       toast({
-        title: '✅ Unstaking Successful',
-        description: `Unstaked ${position.amount} ANDE`,
+        title: '🔐 Approval Submitted',
+        description: 'Token approval transaction has been submitted',
       });
-    } catch (error) {
-      console.error('Unstake error:', error);
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to approve tokens';
+      console.error('Approval error:', error);
       toast({
-        title: 'Unstaking Failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        title: '❌ Approval Failed',
+        description: errorMsg.includes('user rejected') 
+          ? 'Transaction was rejected' 
+          : errorMsg,
         variant: 'destructive',
       });
-    } finally {
-      setIsUnstaking(false);
     }
   };
 
-  const handleClaimRewards = async () => {
-    if (parseFloat(stakingStats.rewards) === 0) {
+  const handleApproveSequencer = async () => {
+    // Check gas first
+    const gasError = getGasErrorMessage();
+    if (gasError) {
       toast({
-        title: 'No Rewards',
-        description: 'You have no rewards to claim',
+        title: '⚠️ Insufficient Gas',
+        description: gasError,
         variant: 'destructive',
       });
       return;
     }
 
-    setIsClaiming(true);
     try {
-      // Simulación de claim (en producción, llamar al contrato)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
+      await approve(sequencerAmount);
       toast({
-        title: '✅ Rewards Claimed',
-        description: `Claimed ${stakingStats.rewards} ANDE`,
+        title: '🔐 Approval Submitted',
+        description: 'Token approval transaction has been submitted',
       });
-
-      setStakingStats(prev => ({ ...prev, rewards: '0' }));
-      setPositions(prev => prev.map(p => ({ ...p, rewards: '0' })));
-    } catch (error) {
-      console.error('Claim error:', error);
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to approve tokens';
+      console.error('Approval error:', error);
       toast({
-        title: 'Claim Failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        title: '❌ Approval Failed',
+        description: errorMsg.includes('user rejected') 
+          ? 'Transaction was rejected' 
+          : errorMsg,
         variant: 'destructive',
       });
-    } finally {
-      setIsClaiming(false);
     }
   };
 
-  const formatTimeRemaining = (timestamp: number): string => {
-    const diff = timestamp - Date.now();
-    if (diff <= 0) return 'Unlocked';
+  // Handle stake actions
+  const handleStakeLiquidity = async () => {
+    // Check gas first
+    const gasError = getGasErrorMessage();
+    if (gasError) {
+      toast({
+        title: '⚠️ Insufficient Gas',
+        description: gasError,
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-    if (days > 0) return `${days}d ${hours}h`;
-    return `${hours}h`;
+    try {
+      await stakeLiquidity(liquidityAmount);
+      toast({
+        title: '🚀 Liquidity Staking Submitted',
+        description: 'Your liquidity staking transaction has been submitted',
+      });
+      setLiquidityAmount('');
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to stake';
+      console.error('Staking error:', error);
+      toast({
+        title: '❌ Staking Failed',
+        description: errorMsg.includes('user rejected') 
+          ? 'Transaction was rejected' 
+          : errorMsg,
+        variant: 'destructive',
+      });
+    }
   };
 
-  const calculateProgress = (startTime: number, unlockTime: number): number => {
-    const total = unlockTime - startTime;
-    const elapsed = Date.now() - startTime;
-    return Math.min((elapsed / total) * 100, 100);
+  const handleStakeGovernance = async () => {
+    // Check gas first
+    const gasError = getGasErrorMessage();
+    if (gasError) {
+      toast({
+        title: '⚠️ Insufficient Gas',
+        description: gasError,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await stakeGovernance(governanceAmount, selectedLockPeriod);
+      toast({
+        title: '🚀 Governance Staking Submitted',
+        description: `Staking with ${LOCK_PERIOD_NAMES[selectedLockPeriod]} lock period`,
+      });
+      setGovernanceAmount('');
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to stake';
+      console.error('Staking error:', error);
+      toast({
+        title: '❌ Staking Failed',
+        description: errorMsg.includes('user rejected') 
+          ? 'Transaction was rejected' 
+          : errorMsg,
+        variant: 'destructive',
+      });
+    }
   };
+
+  const handleStakeSequencer = async () => {
+    // Check gas first
+    const gasError = getGasErrorMessage();
+    if (gasError) {
+      toast({
+        title: '⚠️ Insufficient Gas',
+        description: gasError,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await stakeSequencer(sequencerAmount);
+      toast({
+        title: '🚀 Sequencer Staking Submitted',
+        description: 'Your sequencer staking transaction has been submitted',
+      });
+      setSequencerAmount('');
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to stake';
+      console.error('Staking error:', error);
+      toast({
+        title: '❌ Staking Failed',
+        description: errorMsg.includes('user rejected') 
+          ? 'Transaction was rejected' 
+          : errorMsg,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleUnstake = async () => {
+    try {
+      await unstake();
+      toast({
+        title: '🔓 Unstake Transaction Submitted',
+        description: 'Your unstake transaction has been submitted',
+      });
+    } catch (error: any) {
+      toast({
+        title: '❌ Unstake Failed',
+        description: error.message || 'Failed to unstake',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleClaim = async () => {
+    try {
+      await claimRewards();
+      toast({
+        title: '🎁 Claim Transaction Submitted',
+        description: 'Your rewards claim has been submitted',
+      });
+    } catch (error: any) {
+      toast({
+        title: '❌ Claim Failed',
+        description: error.message || 'Failed to claim rewards',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCopyAddress = () => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      toast({
+        title: 'Copied!',
+        description: 'Address copied to clipboard',
+      });
+    }
+  };
+
+  const explorerUrl = andechain.blockExplorers?.default?.url;
+
+  if (!isConnected) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Staking</h1>
+          <p className="text-muted-foreground mt-2">
+            Stake ANDE and earn rewards
+          </p>
+        </div>
+
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Wallet Not Connected</AlertTitle>
+          <AlertDescription>
+            Please connect your wallet to access staking features.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-          <Landmark className="h-8 w-8 text-blue-500" />
-          Staking
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight">Staking</h1>
         <p className="text-muted-foreground mt-2">
-          Stake your ANDE tokens and earn rewards on {andechain.name}
+          Stake ANDE and earn rewards on {andechain.name}
         </p>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Staked</CardTitle>
-            <Coins className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {parseFloat(stakingStats.totalStaked).toLocaleString()} ANDE
+      {/* Gas Warning */}
+      {!hasEnoughGas && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Insufficient Gas</AlertTitle>
+          <AlertDescription>
+            {getGasErrorMessage()}
+            {' '}
+            <a 
+              href="/faucet" 
+              className="underline font-medium hover:text-foreground"
+            >
+              Get ANDE from the faucet
+            </a>
+            {' '}to pay for transaction fees.
+            <div className="mt-2 text-xs">
+              Native balance for gas: {formattedNativeBalance} ANDE
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Network-wide
-            </p>
-          </CardContent>
-        </Card>
+          </AlertDescription>
+        </Alert>
+      )}
 
+      {/* Success Messages */}
+      {approveSuccess && (
+        <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+          <CheckCircle2 className="h-4 w-4 text-blue-500" />
+          <AlertTitle className="text-blue-800 dark:text-blue-400">Approval Successful!</AlertTitle>
+          <AlertDescription className="text-blue-600 dark:text-blue-500">
+            ANDE approved successfully. You can now stake.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {(liquiditySuccess || governanceSuccess || sequencerSuccess) && (
+        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <AlertTitle className="text-green-700 dark:text-green-400">Stake Successful!</AlertTitle>
+          <AlertDescription className="text-green-600 dark:text-green-500">
+            Your tokens have been staked successfully. Rewards will start accumulating immediately.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {unstakeSuccess && (
+        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <AlertTitle className="text-green-700 dark:text-green-400">Unstake Successful!</AlertTitle>
+          <AlertDescription className="text-green-600 dark:text-green-500">
+            Your tokens have been unstaked and returned to your wallet.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {claimSuccess && (
+        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <AlertTitle className="text-green-700 dark:text-green-400">Rewards Claimed!</AlertTitle>
+          <AlertDescription className="text-green-600 dark:text-green-500">
+            Your staking rewards have been claimed successfully.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Overview Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">My Staked</CardTitle>
-            <Lock className="h-4 w-4 text-muted-foreground" />
+            <Landmark className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {parseFloat(stakingStats.myStaked).toFixed(2)} ANDE
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Your total stake
-            </p>
+            {stakeInfo ? (
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">{parseFloat(stakeInfo.amountFormatted).toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">ANDE</p>
+                <Badge variant="outline" className="text-xs">{stakeInfo.levelName}</Badge>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">0.00</div>
+                <p className="text-xs text-muted-foreground">ANDE</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rewards</CardTitle>
+            <CardTitle className="text-sm font-medium">Pending Rewards</CardTitle>
             <Gift className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {parseFloat(stakingStats.rewards).toFixed(4)} ANDE
+            <div className="space-y-1">
+              <div className="text-2xl font-bold">{parseFloat(pendingRewards).toFixed(4)}</div>
+              <p className="text-xs text-muted-foreground">ANDE</p>
+              {parseFloat(pendingRewards) > 0 && (
+                <Button
+                  size="sm"
+                  onClick={handleClaim}
+                  disabled={isClaiming || isConfirming}
+                  className="mt-2 w-full"
+                >
+                  {isClaiming || isConfirming ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Claiming...
+                    </>
+                  ) : (
+                    <>
+                      <Gift className="mr-2 h-3 w-3" />
+                      Claim
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Claimable rewards
-            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">APR</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Staked</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">
-              {stakingStats.apr}%
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Annual percentage rate
-            </p>
+            {poolStats ? (
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">
+                  {parseFloat(poolStats.totalStaked).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </div>
+                <p className="text-xs text-muted-foreground">ANDE Total</p>
+                <p className="text-xs text-muted-foreground">{poolStats.totalStakers} Stakers</p>
+              </div>
+            ) : (
+              <Skeleton className="h-8 w-24" />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Voting Power</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {stakeInfo ? (
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">{parseFloat(stakeInfo.votingPower).toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Governance Weight</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="text-2xl font-bold">0.00</div>
+                <p className="text-xs text-muted-foreground">No stake</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="stake" className="space-y-6">
+      {/* My Position Card */}
+      {stakeInfo && parseFloat(stakeInfo.amountFormatted) > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>My Staking Position</CardTitle>
+                <CardDescription>Your current stake details and status</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={refreshData}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Landmark className="h-4 w-4" />
+                  Staked Amount
+                </div>
+                <div className="text-2xl font-bold">{parseFloat(stakeInfo.amountFormatted).toFixed(4)} ANDE</div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <TrendingUp className="h-4 w-4" />
+                  Current APY
+                </div>
+                <div className="text-2xl font-bold text-green-600">{stakeInfo.apy}%</div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  Lock Status
+                </div>
+                {stakeInfo.isLocked ? (
+                  <div>
+                    <Badge variant="secondary" className="mb-1">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Locked
+                    </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      Unlocks in {stakeInfo.daysUntilUnlock} days
+                    </p>
+                  </div>
+                ) : (
+                  <Badge variant="outline" className="bg-green-50">
+                    <Unlock className="h-3 w-3 mr-1" />
+                    Unlocked
+                  </Badge>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Shield className="h-4 w-4" />
+                  Staking Level
+                </div>
+                <Badge>{stakeInfo.levelName}</Badge>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  Lock Period
+                </div>
+                <div className="text-sm font-medium">{stakeInfo.lockPeriodName}</div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Trophy className="h-4 w-4" />
+                  Voting Power
+                </div>
+                <div className="text-sm font-medium">{parseFloat(stakeInfo.votingPower).toFixed(2)}</div>
+              </div>
+            </div>
+
+            {stakeInfo.canUnstake && (
+              <div className="mt-6">
+                <Button
+                  variant="outline"
+                  onClick={handleUnstake}
+                  disabled={isUnstaking || isConfirming}
+                  className="w-full md:w-auto"
+                >
+                  {isUnstaking || isConfirming ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Unstaking...
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="mr-2 h-4 w-4" />
+                      Unstake All
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {stakeInfo.isLocked && (
+              <Alert className="mt-6">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Locked Period Active</AlertTitle>
+                <AlertDescription>
+                  Your tokens are locked until {new Date(stakeInfo.lockUntil * 1000).toLocaleDateString()}.
+                  You can unstake after the lock period ends.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Staking Options */}
+      <Tabs defaultValue="liquidity" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="stake">Stake</TabsTrigger>
-          <TabsTrigger value="positions">My Positions</TabsTrigger>
-          <TabsTrigger value="rewards">Rewards</TabsTrigger>
+          <TabsTrigger value="liquidity">
+            <Zap className="h-4 w-4 mr-2" />
+            Liquidity
+          </TabsTrigger>
+          <TabsTrigger value="governance">
+            <Shield className="h-4 w-4 mr-2" />
+            Governance
+          </TabsTrigger>
+          <TabsTrigger value="sequencer">
+            <Trophy className="h-4 w-4 mr-2" />
+            Sequencer
+          </TabsTrigger>
         </TabsList>
 
-        {/* Stake Tab */}
-        <TabsContent value="stake" className="space-y-6">
+        {/* Liquidity Staking */}
+        <TabsContent value="liquidity" className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Stake ANDE Tokens</CardTitle>
-                <CardDescription>
-                  Lock your tokens for {stakingStats.lockPeriod} days and earn {stakingStats.apr}% APR
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {!isConnected ? (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Wallet Not Connected</AlertTitle>
-                    <AlertDescription>
-                      Please connect your wallet to stake tokens
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="stake-amount">Amount to Stake</Label>
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Liquidity Staking</CardTitle>
+                  <CardDescription>
+                    Flexible staking with no lock period. Lower APY but instant unstaking.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="liquidity-amount">Amount to Stake</Label>
+                    <div className="flex gap-2">
                       <Input
-                        id="stake-amount"
+                        id="liquidity-amount"
                         type="number"
-                        step="0.000001"
-                        value={stakeAmount}
-                        onChange={(e) => setStakeAmount(e.target.value)}
+                        step="0.01"
                         placeholder="0.0"
+                        value={liquidityAmount}
+                        onChange={(e) => setLiquidityAmount(e.target.value)}
+                        disabled={isStaking || isConfirming}
+                        className="font-mono"
                       />
-                      {balance && (
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Available: {parseFloat(formatEther(balance.value)).toFixed(6)} ANDE</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-xs"
-                            onClick={() => setStakeAmount(formatEther(balance.value))}
-                          >
-                            Max
-                          </Button>
-                        </div>
-                      )}
+                      <Button
+                        variant="outline"
+                        onClick={() => balance && setLiquidityAmount(balance.formatted)}
+                        disabled={isStaking || isConfirming}
+                      >
+                        Max
+                      </Button>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Minimum: {minLiquidityStake} ANDE • Available: {balance ? parseFloat(balance.formatted).toFixed(4) : '0'} ANDE
+                    </p>
+                  </div>
 
-                    <Separator />
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Minimum Stake</span>
-                        <span className="font-semibold">{stakingStats.minStake} ANDE</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Lock Period</span>
-                        <Badge variant="outline">{stakingStats.lockPeriod} days</Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">APR</span>
-                        <span className="font-semibold text-green-500">{stakingStats.apr}%</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Est. Rewards (30d)</span>
-                        <span className="font-semibold">
-                          {stakeAmount ? ((parseFloat(stakeAmount) * stakingStats.apr / 100 / 12)).toFixed(4) : '0.0000'} ANDE
-                        </span>
-                      </div>
-                    </div>
-
+                  {needsApproval(liquidityAmount) ? (
                     <Button
-                      onClick={handleStake}
-                      disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) < parseFloat(stakingStats.minStake)}
+                      onClick={handleApproveLiquidity}
+                      disabled={
+                        isApproving ||
+                        isConfirming ||
+                        !liquidityAmount ||
+                        parseFloat(liquidityAmount) <= 0
+                      }
+                      className="w-full"
+                      size="lg"
+                      variant="outline"
+                    >
+                      {isApproving || isConfirming ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-5 w-5" />
+                          Approve ANDE
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleStakeLiquidity}
+                      disabled={
+                        isStaking ||
+                        isConfirming ||
+                        !liquidityAmount ||
+                        parseFloat(liquidityAmount) < parseFloat(minLiquidityStake)
+                      }
                       className="w-full"
                       size="lg"
                     >
-                      {isStaking ? (
+                      {isStaking || isConfirming ? (
                         <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           Staking...
                         </>
                       ) : (
                         <>
-                          <Lock className="mr-2 h-5 w-5" />
-                          Stake Tokens
+                          <Zap className="mr-2 h-5 w-5" />
+                          Stake ANDE
                         </>
                       )}
                     </Button>
-
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Important</AlertTitle>
-                      <AlertDescription>
-                        Your tokens will be locked for {stakingStats.lockPeriod} days. Early withdrawal is not possible.
-                        Rewards are calculated automatically and can be claimed at any time.
-                      </AlertDescription>
-                    </Alert>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Percent className="h-4 w-4" />
-                    Staking Benefits
-                  </CardTitle>
+                  <CardTitle className="text-base">Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">High APR</p>
-                      <p className="text-xs text-muted-foreground">
-                        Earn {stakingStats.apr}% annual returns
-                      </p>
-                    </div>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">APY</span>
+                    <span className="font-semibold text-green-600">{liquidityAPY}%</span>
                   </div>
                   <Separator />
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">Auto-Compounding</p>
-                      <p className="text-xs text-muted-foreground">
-                        Rewards accrue automatically
-                      </p>
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Lock Period</span>
+                    <Badge variant="outline">None</Badge>
                   </div>
                   <Separator />
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">Secure Protocol</p>
-                      <p className="text-xs text-muted-foreground">
-                        Audited smart contracts
-                      </p>
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Minimum Stake</span>
+                    <span className="font-mono">{minLiquidityStake} ANDE</span>
                   </div>
                   <Separator />
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">Flexible Claims</p>
-                      <p className="text-xs text-muted-foreground">
-                        Claim rewards anytime
-                      </p>
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Pool Share</span>
+                    <span className="font-semibold">30%</span>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-blue-50 dark:bg-blue-950">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    Quick Stats
+                    <Info className="h-4 w-4" />
+                    Benefits
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Total Stakers</span>
-                    <span className="font-semibold">1,234</span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Avg. Stake</span>
-                    <span className="font-semibold">1,013 ANDE</span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Total Rewards</span>
-                    <span className="font-semibold">12,500 ANDE</span>
-                  </div>
+                <CardContent className="text-xs space-y-2">
+                  <p>✓ No lock period</p>
+                  <p>✓ Instant unstaking</p>
+                  <p>✓ Earn passive rewards</p>
+                  <p>✓ Flexible liquidity</p>
                 </CardContent>
               </Card>
             </div>
           </div>
         </TabsContent>
 
-        {/* My Positions Tab */}
-        <TabsContent value="positions" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5" />
-                My Staking Positions
-              </CardTitle>
-              <CardDescription>
-                View and manage your active stakes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!isConnected ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Connect your wallet to view positions</p>
-                </div>
-              ) : positions.length === 0 ? (
-                <div className="text-center py-8">
-                  <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No active staking positions</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Start staking to earn rewards
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {positions.map((position, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 rounded-lg border bg-muted/50"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <p className="font-semibold text-lg">{position.amount} ANDE</p>
-                          <p className="text-xs text-muted-foreground">
-                            Staked on {new Date(position.startTime).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Badge variant={position.isLocked ? 'default' : 'secondary'}>
-                          {position.isLocked ? (
-                            <>
-                              <Lock className="h-3 w-3 mr-1" />
-                              Locked
-                            </>
-                          ) : (
-                            <>
-                              <Unlock className="h-3 w-3 mr-1" />
-                              Unlocked
-                            </>
-                          )}
-                        </Badge>
-                      </div>
-
-                      {position.isLocked && (
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Time Remaining</span>
-                            <span className="font-semibold flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatTimeRemaining(position.unlockTime)}
-                            </span>
-                          </div>
-                          <Progress value={calculateProgress(position.startTime, position.unlockTime)} />
-                        </div>
-                      )}
-
-                      <Separator className="my-4" />
-
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Rewards Earned</p>
-                          <p className="font-semibold text-green-500">{position.rewards} ANDE</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Unlock Date</p>
-                          <p className="font-semibold text-sm">
-                            {new Date(position.unlockTime).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-
+        {/* Governance Staking */}
+        <TabsContent value="governance" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Governance Staking</CardTitle>
+                  <CardDescription>
+                    Lock tokens to gain voting power. Higher APY with longer lock periods.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="governance-amount">Amount to Stake</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="governance-amount"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.0"
+                        value={governanceAmount}
+                        onChange={(e) => setGovernanceAmount(e.target.value)}
+                        disabled={isStaking || isConfirming}
+                        className="font-mono"
+                      />
                       <Button
-                        onClick={() => handleUnstake(position)}
-                        disabled={isUnstaking || (position.isLocked && position.unlockTime > Date.now())}
-                        className="w-full"
-                        variant={position.isLocked && position.unlockTime > Date.now() ? 'secondary' : 'default'}
+                        variant="outline"
+                        onClick={() => balance && setGovernanceAmount(balance.formatted)}
+                        disabled={isStaking || isConfirming}
                       >
-                        {isUnstaking ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Unstaking...
-                          </>
-                        ) : position.isLocked && position.unlockTime > Date.now() ? (
-                          <>
-                            <Lock className="mr-2 h-4 w-4" />
-                            Locked
-                          </>
-                        ) : (
-                          <>
-                            <Unlock className="mr-2 h-4 w-4" />
-                            Unstake
-                          </>
-                        )}
+                        Max
                       </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Rewards Tab */}
-        <TabsContent value="rewards" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gift className="h-5 w-5" />
-                Claim Rewards
-              </CardTitle>
-              <CardDescription>
-                Claim your accumulated staking rewards
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {!isConnected ? (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Wallet Not Connected</AlertTitle>
-                  <AlertDescription>
-                    Please connect your wallet to view rewards
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <>
-                  <div className="text-center p-8 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-lg border">
-                    <Gift className="h-16 w-16 mx-auto text-blue-500 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">Total Claimable Rewards</p>
-                    <p className="text-4xl font-bold mb-1">{parseFloat(stakingStats.rewards).toFixed(4)} ANDE</p>
-                    <p className="text-sm text-muted-foreground">
-                      ≈ ${(parseFloat(stakingStats.rewards) * 2.30).toFixed(2)} USD
+                    <p className="text-xs text-muted-foreground">
+                      Minimum: {minGovernanceStake} ANDE • Available: {balance ? parseFloat(balance.formatted).toFixed(4) : '0'} ANDE
                     </p>
                   </div>
 
-                  <Button
-                    onClick={handleClaimRewards}
-                    disabled={isClaiming || parseFloat(stakingStats.rewards) === 0}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {isClaiming ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Claiming...
-                      </>
-                    ) : (
-                      <>
-                        <Gift className="mr-2 h-5 w-5" />
-                        Claim Rewards
-                      </>
-                    )}
-                  </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="lock-period">Lock Period</Label>
+                    <Select
+                      value={selectedLockPeriod.toString()}
+                      onValueChange={(value) => setSelectedLockPeriod(parseInt(value) as LockPeriod)}
+                    >
+                      <SelectTrigger id="lock-period">
+                        <SelectValue placeholder="Select lock period" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={LockPeriod.THREE_MONTHS.toString()}>
+                          3 Months (1.5x voting power)
+                        </SelectItem>
+                        <SelectItem value={LockPeriod.SIX_MONTHS.toString()}>
+                          6 Months (2x voting power)
+                        </SelectItem>
+                        <SelectItem value={LockPeriod.TWELVE_MONTHS.toString()}>
+                          12 Months (3x voting power)
+                        </SelectItem>
+                        <SelectItem value={LockPeriod.TWENTY_FOUR_MONTHS.toString()}>
+                          24 Months (4x voting power)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Longer lock periods provide more voting power
+                    </p>
+                  </div>
 
+                  {needsApproval(governanceAmount) ? (
+                    <Button
+                      onClick={handleApproveGovernance}
+                      disabled={
+                        isApproving ||
+                        isConfirming ||
+                        !governanceAmount ||
+                        parseFloat(governanceAmount) <= 0
+                      }
+                      className="w-full"
+                      size="lg"
+                      variant="outline"
+                    >
+                      {isApproving || isConfirming ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-5 w-5" />
+                          Approve ANDE
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleStakeGovernance}
+                      disabled={
+                        isStaking ||
+                        isConfirming ||
+                        !governanceAmount ||
+                        parseFloat(governanceAmount) < parseFloat(minGovernanceStake)
+                      }
+                      className="w-full"
+                      size="lg"
+                    >
+                      {isStaking || isConfirming ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Staking...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="mr-2 h-5 w-5" />
+                          Stake for Governance
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">APY</span>
+                    <span className="font-semibold text-green-600">{governanceAPY}%</span>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Selected Lock</span>
+                    <Badge>{LOCK_PERIOD_NAMES[selectedLockPeriod]}</Badge>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Minimum Stake</span>
+                    <span className="font-mono">{minGovernanceStake} ANDE</span>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Pool Share</span>
+                    <span className="font-semibold">30%</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-purple-50 dark:bg-purple-950">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Trophy className="h-4 w-4" />
+                    Benefits
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-xs space-y-2">
+                  <p>✓ Higher APY rewards</p>
+                  <p>✓ Enhanced voting power</p>
+                  <p>✓ Governance participation</p>
+                  <p>✓ Protocol influence</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Sequencer Staking */}
+        <TabsContent value="sequencer" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Sequencer Staking</CardTitle>
+                  <CardDescription>
+                    Stake to become a sequencer and validate blocks. Highest APY and network rewards.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>About Rewards</AlertTitle>
+                    <Shield className="h-4 w-4" />
+                    <AlertTitle>High Responsibility</AlertTitle>
                     <AlertDescription>
-                      Rewards are calculated based on your staked amount and the current APR.
-                      You can claim your rewards at any time without affecting your staked balance.
+                      Sequencer staking requires significant commitment and technical knowledge.
+                      Ensure you understand the responsibilities before staking.
                     </AlertDescription>
                   </Alert>
-                </>
-              )}
-            </CardContent>
-          </Card>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sequencer-amount">Amount to Stake</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="sequencer-amount"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.0"
+                        value={sequencerAmount}
+                        onChange={(e) => setSequencerAmount(e.target.value)}
+                        disabled={isStaking || isConfirming}
+                        className="font-mono"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => balance && setSequencerAmount(balance.formatted)}
+                        disabled={isStaking || isConfirming}
+                      >
+                        Max
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Minimum: {minSequencerStake} ANDE • Available: {balance ? parseFloat(balance.formatted).toFixed(4) : '0'} ANDE
+                    </p>
+                  </div>
+
+                  {needsApproval(sequencerAmount) ? (
+                    <Button
+                      onClick={handleApproveSequencer}
+                      disabled={
+                        isApproving ||
+                        isConfirming ||
+                        !sequencerAmount ||
+                        parseFloat(sequencerAmount) <= 0
+                      }
+                      className="w-full"
+                      size="lg"
+                      variant="outline"
+                    >
+                      {isApproving || isConfirming ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-5 w-5" />
+                          Approve ANDE
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleStakeSequencer}
+                      disabled={
+                        isStaking ||
+                        isConfirming ||
+                        !sequencerAmount ||
+                        parseFloat(sequencerAmount) < parseFloat(minSequencerStake)
+                      }
+                      className="w-full"
+                      size="lg"
+                    >
+                      {isStaking || isConfirming ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Staking...
+                        </>
+                      ) : (
+                        <>
+                          <Trophy className="mr-2 h-5 w-5" />
+                          Stake as Sequencer
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">APY</span>
+                    <span className="font-semibold text-green-600">{sequencerAPY}%</span>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Minimum Stake</span>
+                    <span className="font-mono">{minSequencerStake} ANDE</span>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Pool Share</span>
+                    <span className="font-semibold">40%</span>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Role</span>
+                    <Badge variant="default">Validator</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-amber-50 dark:bg-amber-950">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Requirements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-xs space-y-2">
+                  <p>✓ High stake requirement</p>
+                  <p>✓ Technical infrastructure</p>
+                  <p>✓ Network validation duties</p>
+                  <p>✓ Highest APY rewards</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
