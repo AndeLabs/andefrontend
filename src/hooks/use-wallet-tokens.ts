@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAccount, usePublicClient, useReadContract } from 'wagmi';
 import { formatUnits, getAddress, type Address } from 'viem';
 import { andechain } from '@/lib/chains';
+import { ANDE_TOKEN_ADDRESS } from '@/contracts/addresses';
 
 // ERC20 ABI (minimal for token detection)
 const ERC20_ABI = [
@@ -172,25 +173,32 @@ export function useWalletTokens(): UseWalletTokensReturn {
     [publicClient, address]
   );
 
-  // Get native token balance
+  // Get native ANDE balance from ANDETokenDuality
   const getNativeBalance = useCallback(async (): Promise<TokenInfo | null> => {
     if (!publicClient || !address) return null;
 
     try {
-      const balance = await publicClient.getBalance({ address });
+      // ANDE es NATIVO - leer desde account.balance
+      const balance = await publicClient.readContract({
+        address: ANDE_TOKEN_ADDRESS,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address],
+      }) as bigint;
+
       const balanceFormatted = formatUnits(balance, 18);
 
       return {
-        address: '0x0000000000000000000000000000000000000000' as Address,
-        name: andechain.nativeCurrency.name,
-        symbol: andechain.nativeCurrency.symbol,
-        decimals: andechain.nativeCurrency.decimals,
+        address: ANDE_TOKEN_ADDRESS,
+        name: 'ANDE',
+        symbol: 'ANDE',
+        decimals: 18,
         balance,
         balanceFormatted,
-        isNative: true,
+        isNative: true, // ✅ ANDE es moneda nativa del sovereign rollup
       };
     } catch (error) {
-      console.error('Error fetching native balance:', error);
+      console.error('Error fetching ANDE balance:', error);
       return null;
     }
   }, [publicClient, address]);
@@ -215,11 +223,7 @@ export function useWalletTokens(): UseWalletTokensReturn {
         const logs = await publicClient.getLogs({
           fromBlock: startBlock,
           toBlock: currentBlock,
-          topics: [
-            transferEventSignature,
-            // From or To our address
-          ],
-        });
+        } as any);
 
         for (const log of logs) {
           if (log.address) {
@@ -261,8 +265,7 @@ export function useWalletTokens(): UseWalletTokensReturn {
       const logs = await publicClient.getLogs({
         fromBlock: startBlock,
         toBlock: currentBlock,
-        topics: [transferEventSignature],
-      });
+      } as any);
 
       const transfers: TokenTransfer[] = [];
 
@@ -343,9 +346,12 @@ export function useWalletTokens(): UseWalletTokensReturn {
       // Detect tokens from transactions
       const detectedTokens = await detectTokensFromTransactions();
 
-      // Combine and deduplicate
+      // Combine and deduplicate, filter out precompile mock and ANDE token
       const allTokenAddresses = Array.from(
         new Set([...customTokens, ...detectedTokens])
+      ).filter(addr => 
+        addr.toLowerCase() !== ANDE_TOKEN_ADDRESS.toLowerCase() &&
+        addr.toLowerCase() !== '0xa85233c63b9ee964add6f2cffe00fd84eb32338f' // Precompile mock
       );
 
       // Fetch info for all tokens
