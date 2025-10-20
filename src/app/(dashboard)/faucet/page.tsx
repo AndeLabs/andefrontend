@@ -12,7 +12,7 @@ import { useAccount } from 'wagmi';
 import { parseEther, formatEther, isAddress } from 'viem';
 import { Droplet, CheckCircle2, AlertCircle, Loader2, Wallet, Copy, ExternalLink, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import { Separator } from '@/components/ui/separator';
 
 interface FaucetRequest {

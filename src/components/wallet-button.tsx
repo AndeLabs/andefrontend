@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useWalletConnection } from '@/hooks/use-wallet-connection';
 import { formatEther } from 'viem';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import { useAndeBalance } from '@/hooks/use-ande-balance';
 import {
   DropdownMenu,

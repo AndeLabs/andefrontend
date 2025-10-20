@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useWalletConnection } from '@/hooks/use-wallet-connection';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import {
   AlertDialog,
   AlertDialogAction,

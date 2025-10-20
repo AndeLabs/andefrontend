@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { andechain } from "@/lib/chains";
+import { andechainTestnet as andechain } from "@/lib/chains";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { BlockActivityChart } from "@/components/network/block-activity-chart";
 import { NetworkHealthIndicator } from "@/components/network/network-health-indicator";

@@ -40,6 +40,9 @@ export default function LandingPage() {
           <span className="ml-2 text-lg font-bold">AndeChain Nexus</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
+           <Button asChild variant="outline">
+             <Link href="/setup">Setup Guide</Link>
+           </Button>
            <Button asChild>
              <Link href="/dashboard">Launch App</Link>
            </Button>
@@ -79,8 +82,10 @@ export default function LandingPage() {
                     Launch App <ArrowRight className="ml-2" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline">
-                  Learn More
+                <Button size="lg" variant="outline" asChild>
+                  <Link href="/setup">
+                    Setup Guide
+                  </Link>
                 </Button>
               </div>
             </div>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wallet, CheckCircle2, AlertCircle, Loader2, Network } from 'lucide-react';
 import { useWalletConnection } from '@/hooks/use-wallet-connection';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 
 interface MetaMaskConnectProps {
   onConnected?: (address: string) => void;

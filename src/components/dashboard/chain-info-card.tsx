@@ -5,7 +5,7 @@ import { useBlockNumber, useGasPrice, useBlock } from 'wagmi';
 import { formatGwei } from 'viem';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import {
   Blocks,
   Zap,

@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import { useTransactionHistory } from '@/hooks/use-transaction-history';
 import { useWalletTokens } from '@/hooks/use-wallet-tokens';
 import { TokenSelector } from '@/components/transactions/token-selector';

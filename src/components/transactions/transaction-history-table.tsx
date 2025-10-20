@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { TransactionDetailed } from '@/hooks/use-transaction-history';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 
 interface TransactionHistoryTableProps {
   transactions: TransactionDetailed[];

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { andechain } from "@/lib/chains";
+import { andechainTestnet as andechain } from "@/lib/chains";
 import { Separator } from "../ui/separator";
 import { useChainStats } from "@/hooks/use-chain-stats";
 import { Activity, Zap, Layers, Clock, ExternalLink } from "lucide-react";

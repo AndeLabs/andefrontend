@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useStaking, StakingLevel, LockPeriod } from '@/hooks/use-staking';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import {
   Select,
   SelectContent,

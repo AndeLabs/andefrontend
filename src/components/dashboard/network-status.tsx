@@ -7,7 +7,7 @@ import { formatGwei } from 'viem';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { andechain } from "@/lib/chains";
+import { andechainTestnet as andechain } from "@/lib/chains";
 import { Separator } from "../ui/separator";
 import { useChainStats } from "@/hooks/use-chain-stats";
 import { Activity, Zap, Layers, Clock } from "lucide-react";
