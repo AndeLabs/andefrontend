@@ -5,7 +5,7 @@
  */
 
 import { PublicClient, WalletClient, parseEther, formatEther, Address, Hash } from 'viem';
-import { andechain } from './chains';
+import { andechainTestnet as andechain } from './chains';
 import { ANDECHAIN_CONTRACTS } from '@/contracts/addresses';
 import ANDETokenABI from '@/contracts/abis/ANDEToken.json';
 import AndeGovernorABI from '@/contracts/abis/AndeGovernor.json';

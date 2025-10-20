@@ -9,6 +9,10 @@ const getExplorerUrl = () => {
   return process.env.NEXT_PUBLIC_EXPLORER_URL || 'http://localhost:4000';
 };
 
+/**
+ * AndeChain Local Development Chain
+ * Uses chainId 1234 for local development with standalone ev-reth
+ */
 export const andechainLocal = defineChain({
   id: 1234,
   name: 'AndeChain Local',
@@ -30,33 +34,83 @@ export const andechainLocal = defineChain({
   testnet: true,
 })
 
+/**
+ * AndeChain Production Testnet
+ * Uses chainId 2019 with EVOLVE sequencer + Celestia Mocha-4 DA
+ * This is the official production-ready testnet configuration
+ */
 export const andechainTestnet = defineChain({
-  id: 1234,
-  name: 'AndeChain Testnet',
+  id: 2019,
+  name: 'AndeChain Mocha',
   nativeCurrency: {
     decimals: 18,
     name: 'ANDE',
     symbol: 'ANDE',
   },
   rpcUrls: {
-    default: { http: ['https://testnet.andechain.com/rpc'] },
-    public: { http: ['https://testnet.andechain.com/rpc'] },
+    default: { http: ['http://localhost:8545'] }, // Will be updated with public endpoint
+    public: { http: ['http://localhost:8545'] },
   },
   blockExplorers: {
     default: { 
       name: 'AndeScan', 
-      url: 'https://testnet.andescan.com',
+      url: getExplorerUrl(),
     },
   },
   testnet: true,
+  contracts: {
+    // Native precompiles
+    andeNative: {
+      address: '0x00000000000000000000000000000000000000FD',
+    },
+  },
 })
 
-// Use local chain by default in development
-export const andechain = process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true' 
-  ? andechainLocal 
-  : andechainLocal; // Default to local for now
+/**
+ * AndeChain Production Mainnet (Future)
+ * Uses chainId TBD with EVOLVE sequencer + Celestia Mainnet DA
+ */
+export const andechainMainnet = defineChain({
+  id: 2019, // Will be changed for mainnet
+  name: 'AndeChain',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'ANDE',
+    symbol: 'ANDE',
+  },
+  rpcUrls: {
+    default: { http: ['https://rpc.andechain.com'] },
+    public: { http: ['https://rpc.andechain.com'] },
+  },
+  blockExplorers: {
+    default: { 
+      name: 'AndeScan', 
+      url: 'https://andescan.com',
+    },
+  },
+  testnet: false,
+  contracts: {
+    // Native precompiles
+    andeNative: {
+      address: '0x00000000000000000000000000000000000000FD',
+    },
+  },
+})
 
-// Export helper to check if explorer is available
+/**
+ * DEPRECATED: Do not use this export
+ * 
+ * This was causing issues because it's evaluated at build-time,
+ * not runtime. Use `andechainTestnet` or `andechainLocal` directly,
+ * or better yet, use `useChainId()` hook for dynamic chain detection.
+ * 
+ * @deprecated Use andechainTestnet or andechainLocal directly
+ */
+export const andechain = andechainTestnet;
+
+/**
+ * Export helper to check if explorer is available
+ */
 export const isExplorerAvailable = async (): Promise<boolean> => {
   if (typeof window === 'undefined') return false;
   
@@ -70,3 +124,33 @@ export const isExplorerAvailable = async (): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Export all chains for use in wallet configuration
+ */
+export const allAndeChains = [
+  andechainLocal,
+  andechainTestnet,
+  andechainMainnet,
+] as const;
+
+/**
+ * Get chain info by chainId
+ */
+export function getChainById(chainId: number) {
+  switch (chainId) {
+    case 1234:
+      return andechainLocal;
+    case 2019:
+      return andechainTestnet;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Check if chainId is a valid AndeChain
+ */
+export function isAndeChain(chainId: number): boolean {
+  return chainId === 1234 || chainId === 2019;
+}
