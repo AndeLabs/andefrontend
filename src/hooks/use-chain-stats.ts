@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePublicClient, useBlockNumber } from 'wagmi';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 
 interface ChainStats {
   tps: number;

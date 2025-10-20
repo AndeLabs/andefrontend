@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAccount, usePublicClient, useReadContract } from 'wagmi';
 import { formatUnits, getAddress, type Address } from 'viem';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import { ANDE_TOKEN_ADDRESS } from '@/contracts/addresses';
 
 // ERC20 ABI (minimal for token detection)

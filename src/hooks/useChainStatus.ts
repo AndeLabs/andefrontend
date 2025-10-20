@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { usePublicClient, useBlockNumber, useAccount } from 'wagmi';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import { logger } from '@/lib/logger';
 
 /**

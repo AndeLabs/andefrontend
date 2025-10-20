@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAccount, useBalance, usePublicClient } from 'wagmi';
 import { formatEther, parseEther } from 'viem';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 
 /**
  * Hook para verificar si el usuario tiene suficiente gas para transacciones

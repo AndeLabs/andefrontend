@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, usePublicClient, useBlockNumber } from 'wagmi';
 import { formatEther, type Address, type Hash } from 'viem';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 
 export interface TransactionDetailed {
   hash: Hash;

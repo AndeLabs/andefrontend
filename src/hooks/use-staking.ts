@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient, useBlockNumber, useBalance } from 'wagmi';
 import { parseEther, formatEther, type Address } from 'viem';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 import { ANDE_NATIVE_STAKING_ADDRESS, ANDE_TOKEN_ADDRESS } from '@/contracts/addresses';
 
 // ABI mínimo para ERC20 (approve y allowance)

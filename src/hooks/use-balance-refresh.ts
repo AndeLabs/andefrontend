@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAccount, useBalance, usePublicClient } from 'wagmi';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 
 /**
  * Hook mejorado para obtener balance con refetch automático

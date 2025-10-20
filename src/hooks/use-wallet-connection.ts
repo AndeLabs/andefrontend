@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useConnectors } from 'wagmi';
 import { useToast } from '@/hooks/use-toast';
-import { andechain } from '@/lib/chains';
+import { andechainTestnet as andechain } from '@/lib/chains';
 
 export type WalletConnectionState = 
   | 'disconnected'

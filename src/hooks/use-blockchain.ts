@@ -2,14 +2,16 @@
  * Optimized Blockchain Hook
  * Provides cached, type-safe access to blockchain data
  * Prevents duplicate requests and optimizes re-renders
+ * 
+ * ✅ Fixed: Now uses dynamic chainId from connected wallet
  */
 
 import { useEffect, useMemo, useCallback } from 'react';
-import { usePublicClient, useWalletClient } from 'wagmi';
+import { usePublicClient, useWalletClient, useChainId } from 'wagmi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Address, Hash } from 'viem';
 import { BlockchainService } from '@/lib/blockchain-service';
-import { andechain } from '@/lib/chains';
+import { isAndeChain } from '@/lib/chains';
 
 // ==========================================
 // QUERY KEYS
@@ -33,13 +35,16 @@ export const blockchainKeys = {
 // ==========================================
 
 export function useBlockchain() {
-  const publicClient = usePublicClient({ chainId: andechain.id });
-  const { data: walletClient } = useWalletClient({ chainId: andechain.id });
+  const chainId = useChainId(); // 🔥 Dynamic chainId from connected wallet
+  const isValidChain = isAndeChain(chainId);
+  
+  const publicClient = usePublicClient({ chainId });
+  const { data: walletClient } = useWalletClient({ chainId });
 
   const service = useMemo(() => {
-    if (!publicClient) return null;
+    if (!publicClient || !isValidChain) return null;
     return new BlockchainService(publicClient, walletClient);
-  }, [publicClient, walletClient]);
+  }, [publicClient, walletClient, isValidChain]);
 
   return service;
 }
