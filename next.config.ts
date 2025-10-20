@@ -8,6 +8,34 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Enable standalone output for Docker
+  output: 'standalone',
+  
+  // Optimize for production (disabled in Docker due to critters dependency)
+  experimental: {
+    optimizeCss: process.env.DOCKER_BUILD !== 'true',
+  },
+  
+  // Compress output
+  compress: true,
+  
+  // Power by header removal for security
+  poweredByHeader: false,
+  
+  // RPC Proxy for Docker networking
+  async rewrites() {
+    return [
+      {
+        source: '/api/rpc',
+        destination: 'http://ande-ev-reth:8545',
+      },
+      {
+        source: '/api/ws',
+        destination: 'http://ande-ev-reth:8546',
+      },
+    ];
+  },
+  
   images: {
     remotePatterns: [
       {
