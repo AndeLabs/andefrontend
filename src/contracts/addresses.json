@@ -1,0 +1,134 @@
+{
+  "chainId": 2019,
+  "network": "AndeChain Testnet",
+  "rpc": "http://localhost:8545",
+  "explorer": "http://localhost:4000",
+  "contracts": {
+    "ANDE": {
+      "name": "ANDE Token",
+      "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+      "implementation": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "type": "ERC20",
+      "decimals": 18,
+      "symbol": "ANDE",
+      "deployed": true,
+      "features": [
+        "ERC20",
+        "ERC20Votes",
+        "ERC20Permit",
+        "AccessControl",
+        "Pausable",
+        "Burnable",
+        "TokenDuality"
+      ]
+    },
+    "AndeNativeStaking": {
+      "name": "ANDE Native Staking",
+      "address": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
+      "implementation": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+      "type": "Staking",
+      "deployed": true,
+      "features": [
+        "MultiLevelStaking",
+        "VotingPower",
+        "LockPeriods",
+        "FlashLoanProtection",
+        "SequencerRegistration"
+      ],
+      "stakingLevels": {
+        "LIQUIDITY": {
+          "minStake": "100000000000000000000",
+          "multiplier": 1.0
+        },
+        "GOVERNANCE": {
+          "minStake": "1000000000000000000000",
+          "multiplier": 2.0
+        },
+        "SEQUENCER": {
+          "minStake": "100000000000000000000000",
+          "multiplier": 5.0
+        }
+      }
+    },
+    "AndeTimelockController": {
+      "name": "ANDE Timelock Controller",
+      "address": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
+      "implementation": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
+      "type": "Governance",
+      "deployed": true,
+      "minDelay": 3600,
+      "features": [
+        "TimelockController",
+        "AccessControl",
+        "Upgradeable"
+      ]
+    },
+    "AndeGovernor": {
+      "name": "ANDE Governor",
+      "address": null,
+      "implementation": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
+      "type": "Governance",
+      "deployed": false,
+      "status": "pending_deployment",
+      "reason": "precompile_dependency_issue",
+      "features": [
+        "Governor",
+        "GovernorVotes",
+        "GovernorTimelockControl",
+        "AdaptiveQuorum",
+        "MultiLevelProposals"
+      ],
+      "proposalTypes": {
+        "OPERATIONAL": {
+          "threshold": "1000000000000000000000000",
+          "votingPeriod": 259200,
+          "description": "Configuration changes"
+        },
+        "PROTOCOL": {
+          "threshold": "5000000000000000000000000",
+          "votingPeriod": 604800,
+          "description": "Important parameter changes"
+        },
+        "CRITICAL": {
+          "threshold": "10000000000000000000000000",
+          "votingPeriod": 864000,
+          "description": "Upgrades and structural changes"
+        }
+      }
+    }
+  },
+  "faucet": {
+    "url": "http://localhost:3001",
+    "endpoints": {
+      "health": "/health",
+      "info": "/api/info",
+      "claim": "/api/claim"
+    },
+    "payoutAmount": "10000000000000000000000",
+    "cooldownMinutes": 5
+  },
+  "deployment": {
+    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "timestamp": "2025-10-20T21:00:00.000Z",
+    "blockNumber": 11334,
+    "gasUsed": "10024925",
+    "status": "partial_success",
+    "deployedContracts": 3,
+    "totalContracts": 4,
+    "successRate": "75%"
+  },
+  "precompiles": {
+    "ANDE_NATIVE": {
+      "address": "0x00000000000000000000000000000000000000fd",
+      "description": "Native ANDE transfer precompile for Token Duality",
+      "status": "pending_implementation"
+    }
+  },
+  "notes": [
+    "ANDE Token deployed with Token Duality support",
+    "Staking contract ready for multi-level staking",
+    "Timelock configured with 1-hour delay",
+    "Governor deployment pending precompile fix",
+    "Faucet currently using native balance, will migrate to ERC20"
+  ]
+}

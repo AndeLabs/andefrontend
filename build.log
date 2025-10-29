@@ -1,0 +1,21 @@
+
+> nextn@0.1.0 prebuild
+> npm run typecheck
+
+
+> nextn@0.1.0 typecheck
+> tsc --noEmit
+
+src/contracts/addresses.ts(284,17): error TS2339: Property 'LOCAL' does not exist on type '{ readonly TESTNET: 2019; readonly MAINNET: 9999; }'.
+src/lib/web3-provider.tsx(54,7): error TS2345: Argument of type 'CreateConnectorFn<EthereumProvider, { connect<withCapabilities extends boolean = false>(parameters?: { chainId?: number | undefined; isReconnecting?: boolean | undefined; pairingTopic?: string | undefined; withCapabilities?: boolean | ... 1 more ... | undefined; } | undefined): Promise<...>; ... 7 more ...; requeste...' is not assignable to parameter of type 'CreateConnectorFn<{ on: <event extends keyof EIP1193EventMap>(event: event, listener: EIP1193EventMap[event]) => void; removeListener: <event extends keyof EIP1193EventMap>(event: event, listener: EIP1193EventMap[event]) => void; ... 41 more ...; _state?: { ...; } | undefined; } | undefined, { ...; }, { ...; }>'.
+  Types of parameters 'config' and 'config' are incompatible.
+    Type '{ chains: readonly [Chain, ...Chain[]]; emitter: Emitter<ConnectorEventMap>; storage?: { key: string; getItem: <key extends keyof StorageItemMap | `${string}.disconnected` | "injected.connected", value extends (StorageItemMap & { ...; })[key], defaultValue extends value | ... 1 more ... | undefined>(key: key, defaul...' is not assignable to type '{ chains: readonly [Chain, ...Chain[]]; emitter: Emitter<ConnectorEventMap>; storage?: { key: string; getItem: <key extends keyof StorageItemMap | `${string}.requestedChains`, value extends (StorageItemMap & { ...; })[key], defaultValue extends value | ... 1 more ... | undefined>(key: key, defaultValue?: defaultValu...'.
+      Types of property 'storage' are incompatible.
+        Type '{ key: string; getItem: <key extends keyof StorageItemMap | `${string}.disconnected` | "injected.connected", value extends (StorageItemMap & { [x: `${string}.disconnected`]: true; "injected.connected": true; })[key], defaultValue extends value | ... 1 more ... | undefined>(key: key, defaultValue?: defaultValue | und...' is not assignable to type '{ key: string; getItem: <key extends keyof StorageItemMap | `${string}.requestedChains`, value extends (StorageItemMap & { [x: `${string}.requestedChains`]: number[]; })[key], defaultValue extends value | null | undefined>(key: key, defaultValue?: defaultValue | undefined) => (defaultValue extends null ? value | nul...'.
+          Type '{ key: string; getItem: <key extends keyof StorageItemMap | `${string}.disconnected` | "injected.connected", value extends (StorageItemMap & { [x: `${string}.disconnected`]: true; "injected.connected": true; })[key], defaultValue extends value | ... 1 more ... | undefined>(key: key, defaultValue?: defaultValue | und...' is not assignable to type '{ key: string; getItem: <key extends keyof StorageItemMap | `${string}.requestedChains`, value extends (StorageItemMap & { [x: `${string}.requestedChains`]: number[]; })[key], defaultValue extends value | null | undefined>(key: key, defaultValue?: defaultValue | undefined) => (defaultValue extends null ? value | nul...'.
+            Types of property 'removeItem' are incompatible.
+              Type '(key: keyof StorageItemMap | `${string}.disconnected` | "injected.connected") => void | Promise<void>' is not assignable to type '(key: keyof StorageItemMap | `${string}.requestedChains`) => void | Promise<void>'.
+                Types of parameters 'key' and 'key' are incompatible.
+                  Type 'keyof StorageItemMap | `${string}.requestedChains`' is not assignable to type 'keyof StorageItemMap | `${string}.disconnected` | "injected.connected"'.
+                    Type '`${string}.requestedChains`' is not assignable to type 'keyof StorageItemMap | `${string}.disconnected` | "injected.connected"'.
+src/lib/web3-provider.tsx(116,9): error TS18048: 'window.ethereum' is possibly 'undefined'.
