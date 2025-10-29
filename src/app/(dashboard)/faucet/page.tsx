@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAndeBalance } from '@/hooks/use-ande-balance';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,9 @@ import { parseEther, formatEther, isAddress } from 'viem';
 import { Droplet, CheckCircle2, AlertCircle, Loader2, Wallet, Copy, ExternalLink, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { andechainTestnet as andechain } from '@/lib/chains';
+import { addAndeChainToWallet } from '@/lib/web3-provider';
 import { Separator } from '@/components/ui/separator';
+import { useChainId, useSwitchChain } from 'wagmi';
 
 interface FaucetRequest {
   address: string;
@@ -22,17 +24,79 @@ interface FaucetRequest {
   txHash?: string;
 }
 
+interface FaucetInfo {
+  account: string;
+  network: string;
+  payout: string;
+  symbol: string;
+}
+
 export default function FaucetPage() {
   const { address, isConnected } = useAccount();
   const { balance, refetch: refetchBalance } = useAndeBalance();
   const { toast } = useToast();
-  const FIXED_AMOUNT = '500000'; // 500,000 ANDE per request
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const [loading, setLoading] = useState(false);
   const [customAddress, setCustomAddress] = useState('');
   const [recentRequests, setRecentRequests] = useState<FaucetRequest[]>([]);
+  const [faucetInfo, setFaucetInfo] = useState<FaucetInfo | null>(null);
 
   const targetAddress = customAddress || address;
   const isValidAddress = targetAddress ? isAddress(targetAddress) : false;
+
+  // Helper to get the correct token symbol (convert ETH to ANDE for AndeChain)
+  const getTokenSymbol = (symbol?: string) => {
+    return symbol === 'ETH' ? 'ANDE' : symbol || 'ANDE';
+  };
+
+  // Helper to format token amount
+  const formatTokenAmount = (amount: string) => {
+    return (parseFloat(amount) / 1e18).toFixed(6);
+  };
+
+  // Helper to switch to AndeChain network
+  const handleSwitchNetwork = async () => {
+    try {
+      if (switchChain) {
+        await switchChain({ chainId: andechain.id });
+      } else {
+        // Fallback to adding network manually
+        await addAndeChainToWallet();
+      }
+      toast({
+        title: '✅ Network Added',
+        description: 'AndeChain network added to your wallet',
+      });
+    } catch (error) {
+      toast({
+        title: '❌ Network Error',
+        description: 'Failed to switch to AndeChain network',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Check if user is on correct network
+  const isCorrectNetwork = chainId === andechain.id;
+
+  // Fetch faucet info on mount
+  useEffect(() => {
+    const fetchFaucetInfo = async () => {
+      try {
+        const faucetUrl = process.env.NEXT_PUBLIC_FAUCET_URL || 'http://localhost:3001';
+        const response = await fetch(`${faucetUrl}/api/info`);
+        if (response.ok) {
+          const info = await response.json();
+          setFaucetInfo(info);
+        }
+      } catch (error) {
+        console.error('Failed to fetch faucet info:', error);
+      }
+    };
+
+    fetchFaucetInfo();
+  }, []);
 
   const requestTokens = async () => {
     if (!targetAddress || !isValidAddress) {
@@ -50,8 +114,8 @@ export default function FaucetPage() {
     try {
       const faucetUrl = process.env.NEXT_PUBLIC_FAUCET_URL || 'http://localhost:3001';
       const explorerUrl = process.env.NEXT_PUBLIC_EXPLORER_URL || 'http://localhost:4000';
-      
-      const response = await fetch(`${faucetUrl}/`, {
+
+      const response = await fetch(`${faucetUrl}/api/claim`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,27 +127,27 @@ export default function FaucetPage() {
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok && !data.msg) {
         const newRequest: FaucetRequest = {
           address: targetAddress,
-          amount: FIXED_AMOUNT,
+          amount: faucetInfo?.payout || '0',
           timestamp: Date.now(),
           txHash: data.txHash,
         };
-        
+
         setRecentRequests((prev) => [newRequest, ...prev].slice(0, 5));
 
         toast({
           title: '✅ Transaction Sent!',
-          description: `${FIXED_AMOUNT} ANDE sent to ${targetAddress.slice(0, 10)}...${targetAddress.slice(-8)}. TX: ${data.txHash.slice(0, 10)}...`,
+          description: `${formatTokenAmount(faucetInfo?.payout || '0')} ${getTokenSymbol(faucetInfo?.symbol)} sent to ${targetAddress.slice(0, 10)}...${targetAddress.slice(-8)}${data.txHash ? `. TX: ${data.txHash.slice(0, 10)}...` : ''}`,
         });
-        
+
         setTimeout(() => {
           refetchBalance();
         }, 2000);
         setCustomAddress('');
       } else {
-        throw new Error(data.message || data.error || 'Failed to request tokens');
+        throw new Error(data.msg || 'Failed to request tokens');
       }
     } catch (error) {
       console.error('Faucet error:', error);
@@ -118,6 +182,20 @@ export default function FaucetPage() {
           Get free test ANDE tokens for development on {andechain.name}
         </p>
       </div>
+
+      {/* Network Warning */}
+      {isConnected && !isCorrectNetwork && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Wrong Network</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>Please switch to {andechain.name} to use the faucet.</span>
+            <Button variant="outline" size="sm" onClick={handleSwitchNetwork}>
+              Switch Network
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">
@@ -177,13 +255,13 @@ export default function FaucetPage() {
               <Droplet className="h-4 w-4" />
               <AlertTitle>Fixed Amount</AlertTitle>
               <AlertDescription>
-                Each request will send <strong>{FIXED_AMOUNT} ANDE</strong> to your wallet
+                Each request will send <strong>{faucetInfo?.payout ? formatTokenAmount(faucetInfo.payout) : '0'} {getTokenSymbol(faucetInfo?.symbol)}</strong> to your wallet
               </AlertDescription>
             </Alert>
 
             <Button
               onClick={requestTokens}
-              disabled={loading || !isValidAddress}
+              disabled={loading || !isValidAddress || (isConnected && !isCorrectNetwork)}
               className="w-full"
               size="lg"
             >
@@ -195,7 +273,7 @@ export default function FaucetPage() {
               ) : (
                 <>
                   <Droplet className="mr-2 h-5 w-5" />
-                  Request {FIXED_AMOUNT} ANDE Tokens
+                  Request {faucetInfo?.payout ? formatTokenAmount(faucetInfo.payout) : '0'} {getTokenSymbol(faucetInfo?.symbol)} Tokens
                 </>
               )}
             </Button>
@@ -211,7 +289,7 @@ export default function FaucetPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Amount per Request</span>
-                  <span className="font-semibold">{FIXED_AMOUNT} ANDE</span>
+                  <span className="font-semibold">{faucetInfo?.payout ? formatTokenAmount(faucetInfo.payout) : '0'} {getTokenSymbol(faucetInfo?.symbol)}</span>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between text-sm">
@@ -301,7 +379,7 @@ export default function FaucetPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <Badge variant="secondary">+{req.amount} ANDE</Badge>
+                    <Badge variant="secondary">+{formatTokenAmount(req.amount)} {getTokenSymbol(faucetInfo?.symbol)}</Badge>
                     {req.txHash && (
                       <div className="flex gap-1 mt-1">
                         <Button

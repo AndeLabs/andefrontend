@@ -46,7 +46,6 @@ export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Addr
 // ==========================================
 
 export const CHAIN_IDS = {
-  LOCAL: 1234,      // Local development (standalone ev-reth)
   TESTNET: 2019,    // Production testnet (EVOLVE + Celestia Mocha-4)
   MAINNET: 9999,    // Future mainnet (TBD - placeholder to avoid conflict with testnet)
 } as const;
@@ -56,30 +55,19 @@ export const CHAIN_IDS = {
 // ==========================================
 
 /**
- * AndeChain Local (chainId 1234)
- * Standalone ev-reth for development
- * Contracts deployed from andechain/contracts/deployments/addresses-local.json
+ * AndeChain Testnet (chainId 2019)
+ * Production testnet with EVOLVE + Celestia Mocha-4
+ * Contracts deployed from andechain/contracts/deployments/addresses-testnet.json
  */
-const LOCAL_CONTRACTS: ContractAddresses = {
-  ANDEToken: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9' as Address, // From local deployment
+const TESTNET_CONTRACTS: ContractAddresses = {
+  ANDEToken: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9' as Address, // From testnet deployment
   AndeGovernor: ZERO_ADDRESS,
   AndeSequencerRegistry: ZERO_ADDRESS,
   AndeNativeStaking: '0x0165878A594ca255338adfa4d48449f69242Eb8F' as Address, // Proxy address
   WAndeVault: ZERO_ADDRESS,
 };
 
-/**
- * AndeChain Testnet (chainId 2019)
- * EVOLVE sequencer + Celestia Mocha-4 DA
- * Production-ready testnet configuration
- */
-const TESTNET_CONTRACTS: ContractAddresses = {
-  ANDEToken: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' as Address,
-  AndeGovernor: '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e' as Address,
-  AndeNativeStaking: '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853' as Address,
-  AndeSequencerRegistry: ZERO_ADDRESS, // TODO: Deploy later
-  WAndeVault: ZERO_ADDRESS, // TODO: Deploy later
-};
+// Remove duplicate - using the consolidated TESTNET_CONTRACTS above
 
 /**
  * AndeChain Mainnet (chainId TBD)
@@ -135,8 +123,6 @@ function getContractsByChainId(chainId?: number): ContractAddresses {
   // If chainId is provided, use it directly
   if (chainId) {
     switch (chainId) {
-      case CHAIN_IDS.LOCAL:
-        return LOCAL_CONTRACTS;
       case CHAIN_IDS.TESTNET:
         return TESTNET_CONTRACTS;
       case CHAIN_IDS.MAINNET:
@@ -148,12 +134,7 @@ function getContractsByChainId(chainId?: number): ContractAddresses {
   }
 
   // Otherwise, use environment variables
-  const useLocal = process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true';
   const useProduction = process.env.NEXT_PUBLIC_USE_PRODUCTION === 'true';
-
-  if (useLocal) {
-    return LOCAL_CONTRACTS;
-  }
 
   if (useProduction) {
     return MAINNET_CONTRACTS;
@@ -299,9 +280,7 @@ export const PRECOMPILES = {
 // ==========================================
 
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  const currentChainId = process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN === 'true' 
-    ? CHAIN_IDS.LOCAL 
-    : CHAIN_IDS.TESTNET;
+  const currentChainId = CHAIN_IDS.TESTNET;
 
   // Log contract addresses in development
   console.group(`🔗 AndeChain Contract Addresses (chainId: ${currentChainId})`);
@@ -323,7 +302,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
 
   // Log all available chains
   console.group('🌐 Available Chain Configurations');
-  console.log(`Local (${CHAIN_IDS.LOCAL}):`, LOCAL_CONTRACTS);
+  // Local development removed - using unified testnet configuration
   console.log(`Testnet (${CHAIN_IDS.TESTNET}):`, TESTNET_CONTRACTS);
   console.log(`Mainnet (${CHAIN_IDS.MAINNET}):`, MAINNET_CONTRACTS);
   console.groupEnd();
@@ -336,7 +315,6 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     deployed: getDeployedContracts(),
     validation,
     allChains: {
-      [CHAIN_IDS.LOCAL]: LOCAL_CONTRACTS,
       [CHAIN_IDS.TESTNET]: TESTNET_CONTRACTS,
       [CHAIN_IDS.MAINNET]: MAINNET_CONTRACTS,
     },

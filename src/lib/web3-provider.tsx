@@ -7,71 +7,122 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { andechainTestnet } from './chains';
 import { useEffect } from 'react';
 
-// Configuración mínima para debug
+// Production-ready chain configuration
 const chains = [andechainTestnet, mainnet] as const;
 
-// Debug: Configuración mínima sin storage ni complicaciones
-console.log('🔍 Initializing minimal Web3 config for debug...');
+// Helper to add AndeChain to MetaMask
+const addAndeChainToWallet = async () => {
+  if (typeof window === 'undefined' || !window.ethereum) return false;
+  
+  try {
+    await (window.ethereum as any).request({
+      method: 'wallet_addEthereumChain',
+      params: [{
+        chainId: `0x${andechainTestnet.id.toString(16)}`, // 0x7e3 for 2019
+        chainName: andechainTestnet.name,
+        nativeCurrency: {
+          name: andechainTestnet.nativeCurrency.name,
+          symbol: andechainTestnet.nativeCurrency.symbol,
+          decimals: andechainTestnet.nativeCurrency.decimals,
+        },
+        rpcUrls: andechainTestnet.rpcUrls.default.http,
+        blockExplorerUrls: [andechainTestnet.blockExplorers.default.url],
+      }],
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to add AndeChain to wallet:', error);
+    return false;
+  }
+};
 
-const wagmiConfig = createConfig({
-  chains,
-  connectors: [
-    injected({
-      shimDisconnect: false, // Simplificar
-    }),
-    walletConnect({
-      projectId: 'c3e4c3a3b3e4c3a3b3e4c3a3b3e4c3a3', // Temporary project ID
-      metadata: {
-        name: 'AndeChain Nexus',
-        description: 'Enterprise-grade DeFi Platform',
-        url: 'http://localhost:3002',
-        icons: ['http://localhost:3002/favicon.ico'],
-      },
-    }),
-  ],
-  transports: {
-    [andechainTestnet.id]: http('/api/rpc'),
-    [mainnet.id]: http(),
-  },
-  ssr: false,
-});
+// Create wagmi configuration
+const getWagmiConfig = () => {
+  const connectors: any[] = [injected({ shimDisconnect: false })];
+  
+  // Only add WalletConnect if project ID is provided and valid
+  const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID;
+  if (walletConnectProjectId && 
+      walletConnectProjectId.length > 20 && 
+      !walletConnectProjectId.includes('c3e4c3a3b3e4c3a3b3e4c3a3b3e4c3a3')) {
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ WalletConnect enabled with project ID:', walletConnectProjectId.slice(0, 8) + '...');
+    }
+    
+    connectors.push(
+      walletConnect({
+        projectId: walletConnectProjectId,
+        metadata: {
+          name: 'AndeChain Nexus',
+          description: 'AndeChain DeFi Platform',
+          url: typeof window !== 'undefined' ? window.location.origin : 'https://app.ande.network',
+          icons: [`${typeof window !== 'undefined' ? window.location.origin : 'https://app.ande.network'}/favicon.ico`],
+        },
+      }) as any
+    );
+  } else {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('ℹ️ WalletConnect disabled - no valid project ID provided');
+    }
+  }
 
-console.log('✅ Web3 config created:', wagmiConfig);
+  return createConfig({
+    chains,
+    connectors,
+    transports: {
+      [andechainTestnet.id]: http('/api/rpc'),
+      [mainnet.id]: http(),
+    },
+    ssr: false,
+  });
+};
+
+const wagmiConfig = getWagmiConfig();
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 10, // 10 seconds for debug
+      staleTime: 1000 * 60 * 5, // 5 minutes
       refetchOnWindowFocus: false,
-      retry: 1, // Reduce retries for faster debug
+      retry: 3,
     },
   },
 });
 
-export { wagmiConfig };
+export { wagmiConfig, addAndeChainToWallet };
 
 function WagmiConnectionHandler({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    console.log('🔍 WagmiConnectionHandler initialized');
-    console.log('🔍 window.ethereum available:', !!window?.ethereum);
-    
-    // Simplificar - solo log básico
-    if (typeof window !== 'undefined' && window.ethereum) {
-      console.log('✅ Ethereum provider detected');
-    } else {
-      console.log('❌ No Ethereum provider found - WalletConnect available as fallback');
-    }
+    // Auto-add AndeChain to supported wallets
+    const handleChainChanged = (chainId: string) => {
+      try {
+        const numericChainId = parseInt(chainId, 16);
+        if (numericChainId !== andechainTestnet.id && window.ethereum) {
+          // Suggest switching to AndeChain if on wrong network
+          setTimeout(() => addAndeChainToWallet(), 1000);
+        }
+      } catch (error) {
+        // Silently handle chain change errors in production
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Chain change handler error:', error);
+        }
+      }
+    };
 
-    // Debug: Log available connectors
-    console.log('🔍 Available connectors:', wagmiConfig.connectors.map(c => c.name));
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const ethereum = window.ethereum;
+      ethereum.on?.('chainChanged', handleChainChanged);
+      return () => {
+        ethereum.removeListener?.('chainChanged', handleChainChanged);
+      };
+    }
   }, []);
 
   return <>{children}</>;
 }
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
-  console.log('🔍 Web3Provider rendering...');
-  
   return (
     <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
@@ -82,6 +133,3 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
     </WagmiProvider>
   );
 }
-
-// Debug: Log para verificar que el módulo se carga
-console.log('📄 web3-provider.tsx loaded successfully');
