@@ -18,7 +18,7 @@ const addAndeChainToWallet = async () => {
     await (window.ethereum as any).request({
       method: 'wallet_addEthereumChain',
       params: [{
-        chainId: `0x${andechainTestnet.id.toString(16)}`, // 0x7e3 for 2019
+        chainId: `0x${andechainTestnet.id.toString(16)}`, // 0x181E for 6174
         chainName: andechainTestnet.name,
         nativeCurrency: {
           name: andechainTestnet.nativeCurrency.name,
@@ -26,7 +26,7 @@ const addAndeChainToWallet = async () => {
           decimals: andechainTestnet.nativeCurrency.decimals,
         },
         rpcUrls: andechainTestnet.rpcUrls.default.http,
-        blockExplorerUrls: [andechainTestnet.blockExplorers.default.url],
+        blockExplorerUrls: andechainTestnet.blockExplorers?.default ? [andechainTestnet.blockExplorers.default.url] : [],
       }],
     });
     return true;

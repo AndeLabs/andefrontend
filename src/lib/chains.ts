@@ -36,19 +36,19 @@ export const andechainLocal = defineChain({
 
 /**
  * AndeChain Production Testnet
- * Uses chainId 2019 with EVOLVE sequencer + Celestia Mocha-4 DA
+ * Uses chainId 6174 with EVOLVE sequencer + Celestia Mocha-4 DA
  * This is the official production-ready testnet configuration
  */
 export const andechainTestnet = defineChain({
-  id: 2019,
-  name: 'AndeChain Mocha',
+  id: 6174,
+  name: 'AndeChain Testnet',
   nativeCurrency: {
     decimals: 18,
     name: 'ANDE',
     symbol: 'ANDE',
   },
   rpcUrls: {
-    default: { http: ['http://localhost:8545'] }, // Will be updated with public endpoint
+    default: { http: ['http://localhost:8545'] },
     public: { http: ['http://localhost:8545'] },
   },
   blockExplorers: {
@@ -63,6 +63,10 @@ export const andechainTestnet = defineChain({
     andeNative: {
       address: '0x00000000000000000000000000000000000000FD',
     },
+    // ANDE Token (Token Duality)
+    andeToken: {
+      address: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+    },
   },
 })
 
@@ -71,7 +75,7 @@ export const andechainTestnet = defineChain({
  * Uses chainId TBD with EVOLVE sequencer + Celestia Mainnet DA
  */
 export const andechainMainnet = defineChain({
-  id: 2019, // Will be changed for mainnet
+  id: 6174, // Will be changed for mainnet
   name: 'AndeChain',
   nativeCurrency: {
     decimals: 18,
@@ -141,7 +145,7 @@ export function getChainById(chainId: number) {
   switch (chainId) {
     case 1234:
       return andechainLocal;
-    case 2019:
+    case 6174:
       return andechainTestnet;
     default:
       return null;
@@ -152,5 +156,5 @@ export function getChainById(chainId: number) {
  * Check if chainId is a valid AndeChain
  */
 export function isAndeChain(chainId: number): boolean {
-  return chainId === 1234 || chainId === 2019;
+  return chainId === 1234 || chainId === 6174;
 }
