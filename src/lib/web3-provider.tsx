@@ -10,28 +10,53 @@ import { useEffect } from 'react';
 // Production-ready chain configuration
 const chains = [andechainTestnet, mainnet] as const;
 
-// Helper to add AndeChain to MetaMask
+// Helper to add AndeChain to MetaMask or compatible wallet
 const addAndeChainToWallet = async () => {
-  if (typeof window === 'undefined' || !window.ethereum) return false;
+  if (typeof window === 'undefined') return false;
   
   try {
-    await (window.ethereum as any).request({
+    // Try to get ethereum provider - handle multiple wallet conflicts
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) {
+      console.error('No Ethereum provider found. Please install MetaMask or another Web3 wallet.');
+      return false;
+    }
+
+    // Validate RPC URLs
+    const rpcUrls = andechainTestnet.rpcUrls.default.http;
+    if (!Array.isArray(rpcUrls) || rpcUrls.length === 0) {
+      console.error('Invalid RPC URLs configuration');
+      return false;
+    }
+
+    const params = [{
+      chainId: `0x${andechainTestnet.id.toString(16)}`, // 0x181E for 6174
+      chainName: andechainTestnet.name,
+      nativeCurrency: {
+        name: andechainTestnet.nativeCurrency.name,
+        symbol: andechainTestnet.nativeCurrency.symbol,
+        decimals: andechainTestnet.nativeCurrency.decimals,
+      },
+      rpcUrls: rpcUrls,
+      blockExplorerUrls: andechainTestnet.blockExplorers?.default 
+        ? [andechainTestnet.blockExplorers.default.url] 
+        : undefined,
+    }];
+
+    await ethereum.request({
       method: 'wallet_addEthereumChain',
-      params: [{
-        chainId: `0x${andechainTestnet.id.toString(16)}`, // 0x181E for 6174
-        chainName: andechainTestnet.name,
-        nativeCurrency: {
-          name: andechainTestnet.nativeCurrency.name,
-          symbol: andechainTestnet.nativeCurrency.symbol,
-          decimals: andechainTestnet.nativeCurrency.decimals,
-        },
-        rpcUrls: andechainTestnet.rpcUrls.default.http,
-        blockExplorerUrls: andechainTestnet.blockExplorers?.default ? [andechainTestnet.blockExplorers.default.url] : [],
-      }],
+      params,
     });
     return true;
-  } catch (error) {
-    console.error('Failed to add AndeChain to wallet:', error);
+  } catch (error: any) {
+    // -32602 = Invalid params, -32603 = Internal error, 4902 = Chain not found
+    if (error.code === 4902) {
+      console.log('Chain is not yet added to MetaMask');
+    } else if (error.code === 4001) {
+      console.log('User rejected adding AndeChain');
+    } else {
+      console.error('Error adding AndeChain to wallet:', error.message || error);
+    }
     return false;
   }
 };

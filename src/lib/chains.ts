@@ -14,25 +14,27 @@ const getEnv = () => {
 const getRpcHttp = () => {
   const env = getEnv();
   
-  // In production deployed on Vercel, use the API proxy route
+  // Production: use RPC proxy route (Vercel handles CORS and routing)
   if (env === 'production' && typeof window !== 'undefined') {
-    // Client-side: use the API proxy to avoid CORS issues
-    return `${window.location.origin}/api/rpc`;
+    // Client-side in production: use the API proxy route on same domain
+    return '/api/rpc';
   }
   
-  // Development or server-side: use direct RPC endpoint
+  // Server-side or direct access: use environment variable or default
   if (env === 'production') {
     return process.env.NEXT_PUBLIC_RPC_HTTP || 'http://189.28.81.202:8545';
   }
   
+  // Development: use local RPC endpoint
   return process.env.NEXT_PUBLIC_LOCAL_RPC_HTTP || 'http://localhost:8545';
 };
 
 // Get RPC WebSocket URL based on environment
 const getRpcWs = () => {
   const env = getEnv();
+  // WebSocket always uses the environment variable or default
   if (env === 'production') {
-    return process.env.NEXT_PUBLIC_RPC_WS || 'wss://rpc.andelabs.io';
+    return process.env.NEXT_PUBLIC_RPC_WS || 'ws://189.28.81.202:8546';
   }
   return process.env.NEXT_PUBLIC_LOCAL_RPC_WS || 'ws://localhost:8546';
 };

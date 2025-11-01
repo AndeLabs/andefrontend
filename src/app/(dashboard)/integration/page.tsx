@@ -76,7 +76,17 @@ export default function IntegrationPage() {
   const { toast } = useToast();
 
   const addToMetaMask = async () => {
-    if (typeof window.ethereum === 'undefined') {
+    if (typeof window === 'undefined') {
+      toast({
+        title: 'Error',
+        description: 'This feature requires a browser environment',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) {
       toast({
         title: 'MetaMask Not Detected',
         description: 'Please install MetaMask to add the network',
@@ -86,7 +96,7 @@ export default function IntegrationPage() {
     }
 
     try {
-      await window.ethereum.request({
+      await ethereum.request({
         method: 'wallet_addEthereumChain',
         params: [
           {
