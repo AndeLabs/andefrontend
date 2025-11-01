@@ -13,9 +13,18 @@ const getEnv = () => {
 // Get RPC HTTP URL based on environment
 const getRpcHttp = () => {
   const env = getEnv();
-  if (env === 'production') {
-    return process.env.NEXT_PUBLIC_RPC_HTTP || 'https://rpc.andelabs.io';
+  
+  // In production deployed on Vercel, use the API proxy route
+  if (env === 'production' && typeof window !== 'undefined') {
+    // Client-side: use the API proxy to avoid CORS issues
+    return `${window.location.origin}/api/rpc`;
   }
+  
+  // Development or server-side: use direct RPC endpoint
+  if (env === 'production') {
+    return process.env.NEXT_PUBLIC_RPC_HTTP || 'http://189.28.81.202:8545';
+  }
+  
   return process.env.NEXT_PUBLIC_LOCAL_RPC_HTTP || 'http://localhost:8545';
 };
 

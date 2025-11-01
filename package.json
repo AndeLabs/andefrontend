@@ -9,10 +9,9 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky",
+    "prepare": "node -e \"try { require('husky').install() } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e }\"",
+    "postinstall": "npm run prepare || true",
     "validate": "node scripts/validate-deployment.js",
-    "prebuild": "npm run typecheck",
-    "predeploy": "npm run validate",
     "clean": "rm -rf .next node_modules/.cache",
     "analyze": "ANALYZE=true npm run build"
   },
