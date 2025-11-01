@@ -131,10 +131,10 @@ export default function SetupPage() {
                   {detectedChainId && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Chain ID:</span>
-                      <Badge variant={detectedChainId === 2019 ? 'default' : 'secondary'}>
+                      <Badge variant={detectedChainId === 6174 ? 'default' : 'secondary'}>
                         {detectedChainId}
                       </Badge>
-                      {detectedChainId === 2019 && (
+                      {detectedChainId === 6174 && (
                         <span className="text-xs text-green-600">(Testnet)</span>
                       )}
                     </div>

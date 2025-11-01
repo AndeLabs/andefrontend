@@ -8,14 +8,14 @@ import { useToast } from './use-toast';
 interface UseChainValidatorOptions {
   showToast?: boolean;
   autoSwitch?: boolean;
-  preferredChainId?: number; // 1234 for local, 2019 for testnet
+  preferredChainId?: number; // 1234 for local, 6174 for testnet
 }
 
 /**
  * Hook to validate if user is connected to a valid AndeChain network
  * 
  * Features:
- * - Validates chainId is 1234 (local) or 2019 (testnet)
+ * - Validates chainId is 1234 (local) or 6174 (testnet)
  * - Shows toast notification if on wrong network
  * - Optionally auto-switches to correct network
  * - Provides helpers to switch networks
@@ -24,7 +24,7 @@ interface UseChainValidatorOptions {
  * ```tsx
  * const { isValidChain, currentChain, switchToTestnet } = useChainValidator({
  *   showToast: true,
- *   preferredChainId: 2019
+ *   preferredChainId: 6174
  * });
  * ```
  */
@@ -32,7 +32,7 @@ export function useChainValidator(options: UseChainValidatorOptions = {}) {
   const {
     showToast = true,
     autoSwitch = false,
-    preferredChainId = 2019, // Default to testnet
+    preferredChainId = 6174, // Default to testnet
   } = options;
 
   const chainId = useChainId();
@@ -71,7 +71,7 @@ export function useChainValidator(options: UseChainValidatorOptions = {}) {
 
   const switchToTestnet = () => {
     if (switchChain) {
-      switchChain({ chainId: 2019 });
+      switchChain({ chainId: 6174 });
     }
   };
 

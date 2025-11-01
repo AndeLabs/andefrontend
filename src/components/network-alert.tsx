@@ -7,7 +7,7 @@ import { AlertTriangle, Network, Loader2 } from 'lucide-react';
 import { useAccount } from 'wagmi';
 
 interface NetworkAlertProps {
-  preferredChainId?: number; // 1234 for local, 2019 for testnet
+  preferredChainId?: number; // 1234 for local, 6174 for testnet
   showWhenValid?: boolean; // Show info even when on correct network
   className?: string;
 }
@@ -20,11 +20,11 @@ interface NetworkAlertProps {
  * 
  * Usage:
  * ```tsx
- * <NetworkAlert preferredChainId={2019} />
+ * <NetworkAlert preferredChainId={6174} />
  * ```
  */
 export function NetworkAlert({
-  preferredChainId = 2019, // Default to testnet
+  preferredChainId = 6174, // Default to testnet
   showWhenValid = false,
   className,
 }: NetworkAlertProps) {
@@ -113,7 +113,7 @@ export function NetworkAlert({
           <p className="font-semibold">Supported Networks:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>AndeChain Local (chainId: 1234) - Development</li>
-            <li>AndeChain Mocha (chainId: 2019) - Testnet with EVOLVE + Celestia</li>
+            <li>AndeChain Mocha (chainId: 6174) - Testnet with EVOLVE + Celestia</li>
           </ul>
         </div>
         <Button
@@ -142,7 +142,7 @@ export function NetworkAlert({
 /**
  * Compact version that just shows a badge
  */
-export function NetworkBadge({ preferredChainId = 2019 }: { preferredChainId?: number }) {
+export function NetworkBadge({ preferredChainId = 6174 }: { preferredChainId?: number }) {
   const { isConnected } = useAccount();
   const { isValidChain, isOnPreferredChain, chainId, currentChain } = useChainValidator({
     showToast: false,

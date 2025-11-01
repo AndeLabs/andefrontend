@@ -22,7 +22,7 @@ interface NetworkConfig {
 
 const ANDECHAIN_NETWORKS: Record<string, NetworkConfig> = {
   testnet: {
-    chainId: 2019,
+    chainId: 6174,
     chainName: 'AndeChain Mocha',
     nativeCurrency: {
       name: 'ANDE',
@@ -247,7 +247,7 @@ export function NetworkSetupCard() {
           <Info className="h-4 w-4" />
           <AlertTitle>Current Configuration</AlertTitle>
           <AlertDescription>
-            Your blockchain is running on <strong>chainId 2019</strong> (AndeChain Mocha).
+            Your blockchain is running on <strong>chainId 6174</strong> (AndeChain Mocha).
             Make sure to add and connect to the correct network.
           </AlertDescription>
         </Alert>
@@ -263,7 +263,7 @@ export function NetworkSetupCard() {
                 Production testnet with EVOLVE sequencer + Celestia DA
               </p>
               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                <span>Chain ID: <strong>2019</strong></span>
+                <span>Chain ID: <strong>6174</strong></span>
                 <span>RPC: <strong>localhost:8545</strong></span>
               </div>
             </div>
@@ -323,7 +323,7 @@ export function NetworkSetupCard() {
             <p>
               <strong>MetaMask shows "Chain ID mismatch":</strong><br />
               Your RPC is responding with a different chainId. Make sure you're adding
-              the network that matches your running blockchain (chainId 2019).
+              the network that matches your running blockchain (chainId 6174).
             </p>
             <p>
               <strong>RPC not available:</strong><br />

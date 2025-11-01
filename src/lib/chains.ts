@@ -137,9 +137,9 @@ export const andechainTestnet = defineChain({
     andeNative: {
       address: '0x00000000000000000000000000000000000000FD',
     },
-    // ANDE Token (Token Duality)
+    // ANDE Token (Token Duality) - Production Testnet Address
     andeToken: {
-      address: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+      address: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707',
     },
   },
 })

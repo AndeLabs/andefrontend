@@ -46,7 +46,7 @@ export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Addr
 // ==========================================
 
 export const CHAIN_IDS = {
-  TESTNET: 2019,    // Production testnet (EVOLVE + Celestia Mocha-4)
+  TESTNET: 6174,    // Production testnet (EVOLVE + Celestia Mocha-4)
   MAINNET: 9999,    // Future mainnet (TBD - placeholder to avoid conflict with testnet)
 } as const;
 
@@ -55,16 +55,22 @@ export const CHAIN_IDS = {
 // ==========================================
 
 /**
- * AndeChain Testnet (chainId 2019)
+ * AndeChain Testnet (chainId 6174)
  * Production testnet with EVOLVE + Celestia Mocha-4
- * Contracts deployed from andechain/contracts/deployments/addresses-testnet.json
+ * Deployed contracts on AndeChain Testnet
+ * 
+ * Contract Addresses (Production Testnet):
+ * - ANDE Token (Token Duality): 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
+ * - AndeGovernor: 0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e
+ * - AndeNativeStaking: 0xa513E6E4b8f2a923D98304ec87F64353C4D5C853
+ * - AndeTimelockController: 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
  */
 const TESTNET_CONTRACTS: ContractAddresses = {
-  ANDEToken: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9' as Address, // From testnet deployment
-  AndeGovernor: ZERO_ADDRESS,
-  AndeSequencerRegistry: ZERO_ADDRESS,
-  AndeNativeStaking: '0x0165878A594ca255338adfa4d48449f69242Eb8F' as Address, // Proxy address
-  WAndeVault: ZERO_ADDRESS,
+  ANDEToken: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' as Address, // Token Duality implementation
+  AndeGovernor: '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e' as Address, // Dual Token Voting Governance
+  AndeSequencerRegistry: ZERO_ADDRESS, // Not deployed yet
+  AndeNativeStaking: '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853' as Address, // 3-tier staking (Liquidity, Governance, Sequencer)
+  WAndeVault: ZERO_ADDRESS, // Not deployed yet
 };
 
 // Remove duplicate - using the consolidated TESTNET_CONTRACTS above
