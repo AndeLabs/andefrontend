@@ -1,0 +1,13 @@
+.next
+node_modules
+.git
+.gitignore
+README.md
+QUICK_START.md
+DEPLOYMENT_GUIDE.md
+DEPLOYMENT_SUMMARY.md
+VERCEL_SETUP.md
+*.log
+.env.local
+.env.production.local
+.DS_Store
