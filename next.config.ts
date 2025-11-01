@@ -3,15 +3,16 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false, // Show errors in production
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false, // Show errors in production
   },
-  // Enable standalone output for Docker
-  output: 'standalone',
   
-  // Optimize for production (disabled in Docker due to critters dependency)
+  // Only use standalone for Docker builds
+  ...(process.env.DOCKER_BUILD === 'true' && { output: 'standalone' }),
+  
+  // Optimize for production
   experimental: {
     optimizeCss: process.env.DOCKER_BUILD !== 'true',
   },
@@ -22,19 +23,30 @@ const nextConfig: NextConfig = {
   // Power by header removal for security
   poweredByHeader: false,
   
-  // RPC Proxy for Docker networking
-  async rewrites() {
-    return [
-      {
-        source: '/api/rpc',
-        destination: 'http://ande-ev-reth:8545',
-      },
-      {
-        source: '/api/ws',
-        destination: 'http://ande-ev-reth:8546',
-      },
-    ];
+  // Webpack configuration for proper module resolution
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, './src'),
+    };
+    return config;
   },
+  
+  // RPC Proxy - only for Docker, Vercel uses /api/rpc route
+  ...(process.env.DOCKER_BUILD === 'true' && {
+    async rewrites() {
+      return [
+        {
+          source: '/api/rpc',
+          destination: 'http://ande-ev-reth:8545',
+        },
+        {
+          source: '/api/ws',
+          destination: 'http://ande-ev-reth:8546',
+        },
+      ];
+    },
+  }),
   
   images: {
     remotePatterns: [
