@@ -63,7 +63,14 @@ const addAndeChainToWallet = async () => {
 
 // Create wagmi configuration
 const getWagmiConfig = () => {
-  const connectors: any[] = [injected({ shimDisconnect: false })];
+  // Prioritize MetaMask over other injected wallets (like Yoroi)
+  // This prevents wallet conflicts when multiple extensions are installed
+  const connectors: any[] = [
+    injected({ 
+      shimDisconnect: false,
+      target: 'metaMask', // Explicitly target MetaMask first
+    }),
+  ];
   
   // Only add WalletConnect if project ID is provided and valid
   const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID;
@@ -92,11 +99,14 @@ const getWagmiConfig = () => {
     }
   }
 
+  // Get RPC URL for wagmi - must be full HTTPS URL, not relative path
+  const andeRpcUrl = process.env.NEXT_PUBLIC_RPC_HTTP || 'http://189.28.81.202:8545';
+
   return createConfig({
     chains,
     connectors,
     transports: {
-      [andechainTestnet.id]: http('/api/rpc'),
+      [andechainTestnet.id]: http(andeRpcUrl),
       [mainnet.id]: http(),
     },
     ssr: false,
