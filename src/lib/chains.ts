@@ -7,15 +7,35 @@ import { defineChain } from 'viem'
 
 // Get environment (development, staging, production)
 const getEnv = () => {
-  return process.env.NEXT_PUBLIC_ENV || 'development';
+  // Explicit environment variable takes priority
+  if (process.env.NEXT_PUBLIC_ENV) {
+    return process.env.NEXT_PUBLIC_ENV;
+  }
+  
+  // Auto-detect production on Vercel or when NODE_ENV is production
+  if (process.env.NODE_ENV === 'production') {
+    return 'production';
+  }
+  
+  // Check if running on Vercel
+  if (process.env.VERCEL === 'true' || process.env.VERCEL_ENV === 'production') {
+    return 'production';
+  }
+  
+  // Default to development
+  return 'development';
 };
 
 // Get RPC HTTP URL based on environment
 const getRpcHttp = () => {
   const env = getEnv();
   
-  // Always use the actual RPC endpoint from environment or default
-  // MetaMask requires full HTTPS URLs, not relative paths
+  // If we have explicit RPC endpoint, always use it (takes priority)
+  if (process.env.NEXT_PUBLIC_RPC_HTTP && process.env.NEXT_PUBLIC_RPC_HTTP !== 'http://localhost:8545') {
+    return process.env.NEXT_PUBLIC_RPC_HTTP;
+  }
+  
+  // Production defaults to AndeChain server
   if (env === 'production') {
     return process.env.NEXT_PUBLIC_RPC_HTTP || 'http://189.28.81.202:8545';
   }
