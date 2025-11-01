@@ -35,9 +35,9 @@ const getRpcHttp = () => {
     return process.env.NEXT_PUBLIC_RPC_HTTP;
   }
   
-  // Production defaults to AndeChain server
+  // Production defaults to AndeChain server (HTTPS required for production)
   if (env === 'production') {
-    return process.env.NEXT_PUBLIC_RPC_HTTP || 'http://189.28.81.202:8545';
+    return process.env.NEXT_PUBLIC_RPC_HTTP || 'https://rpc.ande.network';
   }
   
   // Development: use local RPC endpoint
@@ -47,9 +47,9 @@ const getRpcHttp = () => {
 // Get RPC WebSocket URL based on environment
 const getRpcWs = () => {
   const env = getEnv();
-  // WebSocket always uses the environment variable or default
+  // WebSocket always uses the environment variable or default (WSS required for production)
   if (env === 'production') {
-    return process.env.NEXT_PUBLIC_RPC_WS || 'ws://189.28.81.202:8546';
+    return process.env.NEXT_PUBLIC_RPC_WS || 'wss://ws.ande.network';
   }
   return process.env.NEXT_PUBLIC_LOCAL_RPC_WS || 'ws://localhost:8546';
 };
@@ -58,7 +58,7 @@ const getRpcWs = () => {
 const getExplorerUrl = () => {
   const env = getEnv();
   if (env === 'production') {
-    return process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://explorer.andelabs.io';
+    return process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://explorer.ande.network';
   }
   if (typeof window !== 'undefined') {
     // Try to detect if Blockscout is running on port 4000

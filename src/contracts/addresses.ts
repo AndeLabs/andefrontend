@@ -26,10 +26,12 @@ export interface ContractConfig {
 export interface ContractAddresses {
   ANDEToken: Address;
   AndeGovernor: Address;
+  AndeTimelockController: Address;
+  AndeNativeStaking: Address;
   AndeSequencerRegistry: Address;
-  WAndeVault: Address;
-  AndeNativeStaking?: Address;
-  AndeStaking?: Address;
+  xANDEToken?: Address;
+  XERC20Lockbox?: Address;
+  // Future contracts
   AndeDEX?: Address;
   AndeBridge?: Address;
   [key: string]: Address | undefined;
@@ -66,11 +68,13 @@ export const CHAIN_IDS = {
  * - AndeTimelockController: 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
  */
 const TESTNET_CONTRACTS: ContractAddresses = {
-  ANDEToken: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' as Address, // Token Duality implementation
+  ANDEToken: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' as Address, // Token Duality (Native + ERC20)
   AndeGovernor: '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e' as Address, // Dual Token Voting Governance
-  AndeSequencerRegistry: ZERO_ADDRESS, // Not deployed yet
+  AndeTimelockController: '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318' as Address, // 1-hour delay governance timelock
   AndeNativeStaking: '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853' as Address, // 3-tier staking (Liquidity, Governance, Sequencer)
-  WAndeVault: ZERO_ADDRESS, // Not deployed yet
+  AndeSequencerRegistry: ZERO_ADDRESS, // Pending deployment
+  xANDEToken: ZERO_ADDRESS, // Pending deployment (cross-chain wrapper)
+  XERC20Lockbox: ZERO_ADDRESS, // Pending deployment (1:1 backing)
 };
 
 // Remove duplicate - using the consolidated TESTNET_CONTRACTS above
@@ -82,9 +86,11 @@ const TESTNET_CONTRACTS: ContractAddresses = {
 const MAINNET_CONTRACTS: ContractAddresses = {
   ANDEToken: (process.env.NEXT_PUBLIC_ANDE_TOKEN_ADDRESS || ZERO_ADDRESS) as Address,
   AndeGovernor: (process.env.NEXT_PUBLIC_GOVERNANCE_ADDRESS || ZERO_ADDRESS) as Address,
-  AndeSequencerRegistry: (process.env.NEXT_PUBLIC_SEQUENCER_REGISTRY_ADDRESS || ZERO_ADDRESS) as Address,
-  WAndeVault: (process.env.NEXT_PUBLIC_WANDE_VAULT_ADDRESS || ZERO_ADDRESS) as Address,
+  AndeTimelockController: (process.env.NEXT_PUBLIC_TIMELOCK_ADDRESS || ZERO_ADDRESS) as Address,
   AndeNativeStaking: (process.env.NEXT_PUBLIC_ANDE_NATIVE_STAKING_ADDRESS || ZERO_ADDRESS) as Address,
+  AndeSequencerRegistry: (process.env.NEXT_PUBLIC_SEQUENCER_REGISTRY_ADDRESS || ZERO_ADDRESS) as Address,
+  xANDEToken: (process.env.NEXT_PUBLIC_XANDE_TOKEN_ADDRESS || ZERO_ADDRESS) as Address,
+  XERC20Lockbox: (process.env.NEXT_PUBLIC_XERC20_LOCKBOX_ADDRESS || ZERO_ADDRESS) as Address,
 };
 
 // ==========================================
@@ -102,6 +108,11 @@ export const CONTRACT_CONFIGS: Record<string, Partial<ContractConfig>> = {
     verified: false,
     deployedAt: 1800,
   },
+  AndeTimelockController: {
+    version: '1.0.0',
+    verified: false,
+    deployedAt: 1801,
+  },
   AndeNativeStaking: {
     version: '1.0.0',
     verified: false,
@@ -111,7 +122,11 @@ export const CONTRACT_CONFIGS: Record<string, Partial<ContractConfig>> = {
     version: '1.0.0',
     verified: false,
   },
-  WAndeVault: {
+  xANDEToken: {
+    version: '1.0.0',
+    verified: false,
+  },
+  XERC20Lockbox: {
     version: '1.0.0',
     verified: false,
   },
@@ -338,18 +353,13 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
  */
 export const ANDE_TOKEN_ADDRESS = ANDECHAIN_CONTRACTS.ANDEToken;
 export const ANDE_GOVERNOR_ADDRESS = ANDECHAIN_CONTRACTS.AndeGovernor;
-export const ANDE_NATIVE_STAKING_ADDRESS = ANDECHAIN_CONTRACTS.AndeNativeStaking || ZERO_ADDRESS;
+export const ANDE_TIMELOCK_ADDRESS = ANDECHAIN_CONTRACTS.AndeTimelockController;
+export const ANDE_NATIVE_STAKING_ADDRESS = ANDECHAIN_CONTRACTS.AndeNativeStaking;
 export const ANDE_SEQUENCER_REGISTRY_ADDRESS = ANDECHAIN_CONTRACTS.AndeSequencerRegistry;
-export const WANDE_VAULT_ADDRESS = ANDECHAIN_CONTRACTS.WAndeVault;
-export const ANDE_STAKING_ADDRESS = ANDECHAIN_CONTRACTS.AndeStaking || ZERO_ADDRESS;
+export const XANDE_TOKEN_ADDRESS = ANDECHAIN_CONTRACTS.xANDEToken || ZERO_ADDRESS;
+export const XERC20_LOCKBOX_ADDRESS = ANDECHAIN_CONTRACTS.XERC20Lockbox || ZERO_ADDRESS;
 export const ANDE_DEX_ADDRESS = ANDECHAIN_CONTRACTS.AndeDEX || ZERO_ADDRESS;
 export const ANDE_BRIDGE_ADDRESS = ANDECHAIN_CONTRACTS.AndeBridge || ZERO_ADDRESS;
-
-/**
- * Timelock Controller Address
- * Controls governance proposal execution with 1 hour delay
- */
-export const ANDE_TIMELOCK_ADDRESS = '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318' as Address;
 
 /**
  * Precompile Addresses
