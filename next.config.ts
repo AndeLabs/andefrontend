@@ -24,11 +24,28 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   
   // Webpack configuration for proper module resolution
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
+    // Alias configuration for @/ imports
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': require('path').resolve(__dirname, './src'),
     };
+    
+    // Ignore optional dependencies that cause build issues
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+      crypto: false,
+    };
+    
+    // Ignore missing optional dependencies
+    config.ignoreWarnings = [
+      { module: /node_modules\/pino/ },
+      { module: /node_modules\/pino-pretty/ },
+    ];
+    
     return config;
   },
   
