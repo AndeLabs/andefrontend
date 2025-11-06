@@ -1,31 +1,26 @@
-"use client";
+'use client';
 
 import { memo } from 'react';
 import Link from 'next/link';
-import { useAccount, useBlockNumber, useFeeData } from "wagmi";
-import { formatGwei } from 'viem';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { andechainTestnet as andechain } from "@/lib/chains";
-import { Separator } from "../ui/separator";
-import { useChainStats } from "@/hooks/use-chain-stats";
-import { Activity, Zap, Layers, Clock, ExternalLink } from "lucide-react";
+import { useAccount } from 'wagmi';
+import { formatEther } from 'viem';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { andechainTestnet as andechain } from '@/lib/chains';
+import { Separator } from '../ui/separator';
+import { useChainMetrics, useGasPrice, useBlockNumber } from '@/hooks/use-blockchain';
+import { Activity, Zap, Layers, Clock, ExternalLink, Signal } from 'lucide-react';
 
 function NetworkStatusCompactComponent() {
   const { isConnected, chain } = useAccount();
-  const { data: blockNumber, isLoading: isBlockLoading } = useBlockNumber({ 
-    watch: true,
-    chainId: andechain.id,
-  });
-  const { data: feeData, isLoading: isFeeLoading } = useFeeData({
-      chainId: andechain.id,
-  });
-  const { tps, avgBlockTime, isLoading: isStatsLoading } = useChainStats();
-  
+  const { data: metrics, isLoading: metricsLoading } = useChainMetrics();
+  const { data: gasPrice, isLoading: gasLoading } = useGasPrice();
+  const { data: blockNumber, isLoading: blockLoading } = useBlockNumber({ watch: true });
+
   const isCorrectNetwork = !isConnected || chain?.id === andechain.id;
-  const gasPriceInGwei = feeData?.gasPrice ? formatGwei(feeData.gasPrice) : null;
+  const isLoading = metricsLoading || gasLoading || blockLoading;
 
   const renderStatus = () => {
     if (!isConnected) {
@@ -39,6 +34,7 @@ function NetworkStatusCompactComponent() {
         </Badge>
       );
     }
+
     if (!isCorrectNetwork) {
       return (
         <Badge variant="destructive" className="gap-1.5">
@@ -47,8 +43,12 @@ function NetworkStatusCompactComponent() {
         </Badge>
       );
     }
+
     return (
-      <Badge variant="default" className="gap-1.5 bg-green-500 hover:bg-green-600">
+      <Badge
+        variant="default"
+        className="gap-1.5 bg-green-500 hover:bg-green-600"
+      >
         <span className="relative flex h-1.5 w-1.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-300 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-100"></span>
@@ -57,7 +57,21 @@ function NetworkStatusCompactComponent() {
       </Badge>
     );
   };
-  
+
+  const renderMetric = (label: string, value: string | number, icon: React.ReactNode, loading: boolean) => (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+        {icon}
+        <span>{label}</span>
+      </div>
+      {loading ? (
+        <Skeleton className="h-5 w-16" />
+      ) : (
+        <div className="font-semibold text-sm tabular-nums">{value}</div>
+      )}
+    </div>
+  );
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -69,59 +83,47 @@ function NetworkStatusCompactComponent() {
           {renderStatus()}
         </div>
       </CardHeader>
+
       <CardContent className="space-y-3">
+        {/* Network Metrics Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-              <Zap className="h-3 w-3" />
-              <span>Gas</span>
-            </div>
-            {isFeeLoading ? (
-              <Skeleton className="h-5 w-16" />
-            ) : (
-              <div className="font-semibold tabular-nums">
-                {gasPriceInGwei ? parseFloat(gasPriceInGwei).toFixed(2) : 'N/A'}
-              </div>
-            )}
-          </div>
+          {renderMetric(
+            'Gas Price',
+            isLoading || !gasPrice
+              ? '—'
+              : `${parseFloat(formatEther(gasPrice)).toFixed(4)} Gwei`,
+            <Zap className="h-3 w-3" />,
+            gasLoading
+          )}
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-              <Activity className="h-3 w-3" />
-              <span>TPS</span>
-            </div>
-            {isStatsLoading ? (
-              <Skeleton className="h-5 w-12" />
-            ) : (
-              <div className="font-semibold">{tps}</div>
-            )}
-          </div>
+          {renderMetric(
+            'TPS',
+            isLoading || !metrics ? '—' : metrics.tps.toFixed(2),
+            <Activity className="h-3 w-3" />,
+            metricsLoading
+          )}
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-              <Layers className="h-3 w-3" />
-              <span>Block</span>
-            </div>
-            {isBlockLoading ? (
-              <Skeleton className="h-5 w-20" />
-            ) : (
-              <div className="font-semibold tabular-nums text-sm">
-                {blockNumber?.toString() || '—'}
-              </div>
-            )}
-          </div>
+          {renderMetric(
+            'Block #',
+            isLoading || !blockNumber ? '—' : blockNumber.toString(),
+            <Layers className="h-3 w-3" />,
+            blockLoading
+          )}
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-              <Clock className="h-3 w-3" />
-              <span>Time</span>
-            </div>
-            {isStatsLoading ? (
-              <Skeleton className="h-5 w-12" />
-            ) : (
-              <div className="font-semibold">{avgBlockTime}s</div>
-            )}
-          </div>
+          {renderMetric(
+            'Block Time',
+            isLoading || !metrics ? '—' : `${(metrics.blockTime / 1000).toFixed(1)}s`,
+            <Clock className="h-3 w-3" />,
+            metricsLoading
+          )}
+        </div>
+
+        {/* Health Status */}
+        <div className="flex items-center gap-2 text-xs">
+          <Signal className={`h-3 w-3 ${metrics?.networkHealth === 'healthy' ? 'text-green-500' : 'text-yellow-500'}`} />
+          <span className="text-muted-foreground">
+            Network Status: <span className="font-medium capitalize">{metrics?.networkHealth || 'unknown'}</span>
+          </span>
         </div>
 
         <Separator />
