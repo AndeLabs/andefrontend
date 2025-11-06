@@ -144,7 +144,7 @@ export function DashboardContent() {
         <BalanceCard 
           title="Total Value"
           balance={totalBalanceDisplay}
-          usdValue={`${formattedTokenBalance} ANDE`}
+          usdValue={`${formattedBalance} ANDE`}
           change="+1.8%"
           icon={<DollarSign />}
           isLoading={blockchainData.isLoading}
