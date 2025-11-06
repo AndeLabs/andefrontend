@@ -16,7 +16,7 @@
 
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useReadContract, useBlockNumber, useChainId } from 'wagmi';
 import { formatEther } from 'viem';
 
