@@ -23,14 +23,18 @@ interface NetworkConfig {
 const ANDECHAIN_NETWORKS: Record<string, NetworkConfig> = {
   testnet: {
     chainId: 6174,
-    chainName: 'AndeChain Mocha',
+    chainName: 'AndeChain Testnet',
     nativeCurrency: {
       name: 'ANDE',
       symbol: 'ANDE',
       decimals: 18,
     },
-    rpcUrls: ['http://localhost:8545'],
-    blockExplorerUrls: ['http://localhost:4000'],
+    // HTTPS URLs for MetaMask (required for production)
+    rpcUrls: [
+      'https://rpc.ande.network',
+      'http://189.28.81.202:8545' // Fallback (if needed in test environment)
+    ],
+    blockExplorerUrls: ['https://explorer.ande.network'],
   },
   local: {
     chainId: 1234,

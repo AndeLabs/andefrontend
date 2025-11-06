@@ -30,12 +30,10 @@ const getEnv = () => {
 const getRpcHttp = () => {
   const env = getEnv();
   
-  // Production: use environment variables with fallback chain
+  // Production: MUST use HTTPS for MetaMask compatibility
   if (env === 'production') {
-    const primary = process.env.NEXT_PUBLIC_RPC_HTTP || 'https://rpc.ande.network';
-    const fallback = process.env.NEXT_PUBLIC_RPC_HTTP_FALLBACK || 'http://189.28.81.202:8545';
-    // Return primary, but store fallback for error handling
-    return primary;
+    // Always return HTTPS URL - MetaMask rejects HTTP in production
+    return process.env.NEXT_PUBLIC_RPC_HTTP || 'https://rpc.ande.network';
   }
   
   // Development: use local RPC endpoint
