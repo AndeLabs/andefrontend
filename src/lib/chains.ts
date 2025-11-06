@@ -84,38 +84,6 @@ const getChainId = (): number => {
 };
 
 /**
- * AndeChain Testnet (Chain ID: 6174)
- * Sovereign Rollup with Celestia DA (Mocha-4)
- * Production environment configuration
- */
-export const andechainTestnet = defineChain({
-  id: 6174,
-  name: 'AndeChain Testnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'ANDE',
-    symbol: 'ANDE',
-  },
-  rpcUrls: {
-    default: { 
-      http: [getRpcHttp()],
-      webSocket: [getRpcWs()],
-    },
-    public: { 
-      http: [getRpcHttp()],
-      webSocket: [getRpcWs()],
-    },
-  },
-  blockExplorers: {
-    default: { 
-      name: 'Blockscout', 
-      url: getExplorerUrl(),
-    },
-  },
-  testnet: true,
-});
-
-/**
  * AndeChain Local Development Chain
  * Uses chainId 1234 for local development with standalone ev-reth
  */
@@ -141,13 +109,11 @@ export const andechainLocal = defineChain({
 });
 
 /**
- * AndeChain Production Testnet
- * Uses chainId 6174 with EVOLVE sequencer + Celestia Mocha-4 DA
- * This is the official production-ready testnet configuration
- * 
- * RPC endpoints are dynamically configured based on NEXT_PUBLIC_ENV:
+ * AndeChain Production Testnet (Chain ID: 6174)
+ * Sovereign Rollup with Celestia DA (Mocha-4)
+ * Uses dynamic RPC configuration based on NEXT_PUBLIC_ENV:
  * - development: localhost:8545
- * - production: Public RPC (IP or domain)
+ * - production: https://rpc.ande.network (with fallback)
  */
 export const andechainTestnet = defineChain({
   id: getChainId(),
@@ -169,7 +135,7 @@ export const andechainTestnet = defineChain({
   },
   blockExplorers: {
     default: { 
-      name: 'AndeScan', 
+      name: 'Blockscout', 
       url: getExplorerUrl(),
     },
   },
@@ -179,9 +145,9 @@ export const andechainTestnet = defineChain({
     andeNative: {
       address: '0x00000000000000000000000000000000000000FD',
     },
-    // ANDE Token (Token Duality) - Production Testnet Address
+    // ANDE Token (Token Duality) - Precompile address
     andeToken: {
-      address: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707',
+      address: '0x00000000000000000000000000000000000000FD',
     },
   },
 })
