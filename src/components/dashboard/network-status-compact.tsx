@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { andechainTestnet as andechain } from '@/lib/chains';
 import { Separator } from '../ui/separator';
-import { useChainMetrics, useGasPrice, useBlockNumber } from '@/hooks/use-blockchain';
+import { useChainMetrics, useGasPrice, useBlockNumber } from '@/hooks/use-blockchain-v2';
 import { Activity, Zap, Layers, Clock, ExternalLink, Signal } from 'lucide-react';
 
 function NetworkStatusCompactComponent() {

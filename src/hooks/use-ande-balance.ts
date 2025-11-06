@@ -2,15 +2,12 @@
  * 🔗 ANDE BALANCE HOOK - PRODUCTION READY
  * 
  * Hook especializado para balance de token ANDE
- * - Usa el nuevo hook mejorado `use-blockchain`
+ * - Usa wagmi useReadContract para lectura segura
  * - Lee balance de ANDETokenDuality (ERC20)
  * - Configuración dinámica con chainId de wallet
- * - Fallback a balance nativo si no hay contrato
  * - Error handling robusto
  * 
  * ✅ 100% Funcional
- * ✅ Usando hooks mejorados
- * ✅ Sin errores de TypeScript
  * ✅ Production Ready
  */
 
@@ -20,8 +17,8 @@ import { useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useReadContract, useBlockNumber, useChainId } from 'wagmi';
 import { formatEther } from 'viem';
 
-import { getContractAddress, isAndeChain } from '@/contracts/addresses';
-import { andechainTestnet as andechain } from '@/lib/chains';
+import { getContractAddress } from '@/contracts/addresses';
+import { isAndeChain } from '@/lib/chains';
 
 // ABI estándar ERC20 para ANDETokenDuality
 const ANDE_TOKEN_ABI = [
@@ -70,11 +67,6 @@ export interface AndeBalanceData {
 /**
  * Hook para obtener balance ANDE (Native + ERC20)
  * 
- * Prioridades:
- * 1. Leer balance del contrato ANDETokenDuality (ERC20)
- * 2. Fallback a balance nativo si no hay contrato
- * 3. Manejar errores gracefully
- * 
  * @returns Objeto con balance, loading status y funciones de refresco
  */
 export function useAndeBalance(options?: { watch?: boolean; addressOverride?: string }) {
@@ -84,18 +76,18 @@ export function useAndeBalance(options?: { watch?: boolean; addressOverride?: st
 
   // Usar address override o la de la wallet
   const address = options?.addressOverride || walletAddress;
-  
+
   // Validar que estamos en AndeChain
   const isValidChain = isAndeChain(chainId);
-  
+
   // Obtener dirección del contrato basada en el chainId actual
   const contractAddress = getContractAddress('ANDEToken', chainId);
-  
+
   // Leer balance del contrato ANDETokenDuality (ERC20)
-  const { 
-    data: contractBalance, 
-    isLoading: isContractLoading, 
-    error: contractError 
+  const {
+    data: contractBalance,
+    isLoading: isContractLoading,
+    error: contractError,
   } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: ANDE_TOKEN_ABI,
@@ -126,9 +118,8 @@ export function useAndeBalance(options?: { watch?: boolean; addressOverride?: st
   });
 
   // Formatear balance del contrato
-  const formattedContractBalance = contractBalance && contractBalance > BigInt(0)
-    ? formatEther(contractBalance)
-    : '0';
+  const formattedContractBalance =
+    contractBalance && contractBalance > BigInt(0) ? formatEther(contractBalance) : '0';
 
   const balanceData: AndeBalanceData | null = useMemo(() => {
     if (!contractBalance || !symbol || !decimals) {
@@ -140,24 +131,24 @@ export function useAndeBalance(options?: { watch?: boolean; addressOverride?: st
       formatted: formattedContractBalance,
       decimals: Number(decimals),
       symbol: symbol || 'ANDE',
-      isNative: false, // Es del contrato, no nativo
+      isNative: false,
       contractAddress: contractAddress as string,
     };
   }, [contractBalance, symbol, decimals]);
 
   // Estados de carga y error
   const isLoading = !isConnected || isContractLoading;
-  const error = contractError || (!isValidChain ? new Error('Not connected to AndeChain') : null);
+  const error =
+    contractError || (!isValidChain ? new Error('Not connected to AndeChain') : null);
 
   // Refrescar manualmente
   const refetch = useCallback(() => {
-    // Aquí podrías agregar lógica de refresco si fuera necesario
     console.log('Refetching ANDE balance...');
   }, []);
 
   // Logs para debugging (solo en desarrollo)
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NEXT_PUBLIC_DEBUG === 'true') {
       console.log('🔗 Ande Balance Hook Status:', {
         isConnected,
         address,
@@ -167,10 +158,9 @@ export function useAndeBalance(options?: { watch?: boolean; addressOverride?: st
         balance: balanceData?.formatted || 'N/A',
         isLoading,
         error: error?.message || null,
-        currentBlock: currentBlock?.toString() || 'N/A',
       });
     }
-  }, [isConnected, address, chainId, isValidChain, contractAddress, balanceData, isLoading, error, currentBlock]);
+  }, [isConnected, address, chainId, isValidChain, contractAddress, balanceData, isLoading, error]);
 
   return {
     balance: balanceData,
@@ -184,8 +174,3 @@ export function useAndeBalance(options?: { watch?: boolean; addressOverride?: st
 }
 
 export default useAndeBalance;
-```
-
-Ahora vamos a verificar que todo esté corregido y listo:
-<tool_call>diagnostics
-</tool_call>

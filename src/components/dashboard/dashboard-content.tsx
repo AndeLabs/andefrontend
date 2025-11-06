@@ -9,14 +9,15 @@ import { formatEther } from 'viem';
 
 import { BalanceCard } from "@/components/dashboard/balance-card";
 import { NetworkStatusCompact } from "@/components/dashboard/network-status-compact";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Alert, AlertDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-// Nuevos hooks mejorados para AndeChain
-import { useBlockchainData, useNativeBalance, useTokenBalance, useGasPrice, useRecentTransactions } from '@/hooks/use-blockchain';
+// Hooks mejorados para AndeChain
+import { useBlockchainData, useBalance, useBalanceFormatted, useGasPrice, useBlockNumber } from '@/hooks/use-blockchain-v2';
 import { isAndeChain } from '@/lib/chains';
 import { getDeployedContracts, PRECOMPILES } from '@/contracts/addresses';
 import { andechainTestnet as andechain } from '@/lib/chains';
@@ -34,31 +35,27 @@ export function DashboardContent() {
   const chainId = useChainId();
   const isValidChain = isAndeChain(chainId);
   
-  // 🔥 Hooks mejorados con datos reales de AndeChain
+  // Hooks mejorados con datos reales de AndeChain
   const blockchainData = useBlockchainData(address);
-  const { data: nativeBalance } = useNativeBalance(address, { watch: true });
-  const { data: tokenBalance } = useTokenBalance(address, { watch: true });
-  const { data: gasPrice } = useGasPrice();
-  const { data: recentTransactions } = useRecentTransactions(10);
+  const balance = useBalance(address, { watch: true });
+  const balanceFormatted = useBalanceFormatted(address, { watch: true });
+  const gasPrice = useGasPrice();
+  const blockNumber = useBlockNumber({ watch: true });
 
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Formatear balances para display
-  const formattedNativeBalance = nativeBalance 
-    ? parseFloat(nativeBalance.formatted).toFixed(4)
-    : '0.0000';
-
-  const formattedTokenBalance = tokenBalance
-    ? parseFloat(tokenBalance.formatted).toFixed(4)
+  const formattedBalance = balanceFormatted.data 
+    ? parseFloat(balanceFormatted.data).toFixed(4)
     : '0.0000';
 
   // Precio ANDE (puede venir de API en futuro)
   const andePriceUSD = 0.15; // Placeholder - integrar Coingecko después
-  const totalValueUSD = (parseFloat(formattedTokenBalance) * andePriceUSD);
+  const totalValueUSD = (parseFloat(formattedBalance) * andePriceUSD);
 
   const andeBalanceDisplay = isConnected 
-    ? `${formattedTokenBalance} ANDE` 
+    ? `${formattedBalance} ANDE` 
     : '0.0000 ANDE';
   const totalBalanceDisplay = isConnected 
     ? `$${totalValueUSD.toFixed(4)}` 
