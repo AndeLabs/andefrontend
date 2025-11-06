@@ -20,7 +20,7 @@ export const ANDE_CHAIN_CONFIG = {
   },
 
   // ============================================
-  // RPC Endpoints (Actualizar con IP pública si aplica)
+  // RPC Endpoints (Production Testnet - Chain ID 6174)
   // ============================================
   rpc: {
     // LOCAL (Development)
@@ -30,19 +30,31 @@ export const ANDE_CHAIN_CONFIG = {
       engineApi: 'http://localhost:8551',
       evolveRpc: 'http://localhost:7331',
     },
-    // PUBLIC (via Nginx Reverse Proxy)
-    public: {
-      http: 'http://localhost/rpc',
-      ws: 'ws://localhost/ws',
-      evolveRpc: 'http://localhost/evolve',
+    // PRODUCTION (via DNS + Nginx Reverse Proxy)
+    production: {
+      http: 'https://rpc.ande.network',
+      ws: 'wss://ws.ande.network',
+      evolveRpc: 'https://api.ande.network/evolve',
     },
-    // PUBLIC INTERNET ACCESS
-    // Your public IP: 189.28.81.202
-    publicInternet: {
-      http: 'http://189.28.81.202/rpc',
-      ws: 'ws://189.28.81.202/ws',
-      evolveRpc: 'http://189.28.81.202/evolve',
+    // FALLBACK (Direct IP for redundancy)
+    fallback: {
+      http: 'http://189.28.81.202:8545',
+      ws: 'ws://189.28.81.202:8546',
+      evolveRpc: 'http://189.28.81.202:7331',
     },
+  },
+
+  // ============================================
+  // Public Services URLs
+  // ============================================
+  services: {
+    explorer: 'https://explorer.ande.network',
+    faucet: 'https://faucet.ande.network',
+    grafana: 'https://grafana.ande.network',
+    status: 'https://status.ande.network',
+    docs: 'https://docs.ande.network',
+    celestiaExplorer: 'https://mocha-4.celenium.io',
+    discord: 'https://discord.gg/ande',
   },
 
   // ============================================
@@ -66,16 +78,20 @@ export const ANDE_CHAIN_CONFIG = {
       ANDE: {
         name: 'ANDE',
         symbol: 'ANDE',
-        address: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707', // Production Testnet - Token Duality
-        implementation: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707',
-        precompile: '0x00000000000000000000000000000000000000FD', // Native ANDE precompile
+        // Precompile address (native token)
+        address: '0x00000000000000000000000000000000000000FD',
+        precompile: '0x00000000000000000000000000000000000000FD',
+        // Will be updated after deployment
+        implementation: null, // Updated after DeployANDETokenDuality
+        proxy: null, // Updated after DeployANDETokenDuality
         decimals: 18,
         totalSupply: '100000000000000000000000000', // 100M ANDE with 18 decimals
-        type: 'native+erc20', // Token Duality
+        type: 'native+erc20', // Token Duality - Precompile + ERC20 Proxy
         chainDeployed: 6174,
-        deploymentBlock: 1,
-        features: ['ERC1967Proxy', 'TokenDuality', 'Precompile', 'AccessControl'],
-        interfaces: ['ERC20', 'IERC1967', 'IAccessControl', 'ITokenDuality'],
+        deploymentBlock: null, // Updated after deployment
+        features: ['ERC1967Proxy', 'TokenDuality', 'Precompile', 'AccessControl', 'ParallelEVM'],
+        interfaces: ['ERC20', 'IERC1967', 'IAccessControl', 'ITokenDuality', 'INativeTransfer'],
+        status: 'precompile_deployed', // Precompile is always available
       },
     },
     governance: {

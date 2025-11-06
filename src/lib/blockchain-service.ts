@@ -5,11 +5,12 @@
  */
 
 import { PublicClient, WalletClient, parseEther, formatEther, Address, Hash } from 'viem';
-import { andechainTestnet as andechain } from './chains';
-import { ANDECHAIN_CONTRACTS } from '@/contracts/addresses';
-import ANDETokenABI from '@/contracts/abis/ANDEToken.json';
-import AndeGovernorABI from '@/contracts/abis/AndeGovernor.json';
-import AndeSequencerRegistryABI from '@/contracts/abis/AndeSequencerRegistry.json';
+import { andechainTestnet } from './chains';
+import { ANDE_CHAIN_CONFIG } from './chain.config';
+// import { ANDECHAIN_CONTRACTS } from '@/contracts/addresses';
+// import ANDETokenABI from '@/contracts/abis/ANDEToken.json';
+// import AndeGovernorABI from '@/contracts/abis/AndeGovernor.json';
+// import AndeSequencerRegistryABI from '@/contracts/abis/AndeSequencerRegistry.json';
 
 // ==========================================
 // TYPES
@@ -66,10 +67,18 @@ export interface StakePosition {
 export class BlockchainService {
   private publicClient: PublicClient;
   private walletClient?: WalletClient;
+  private chainConfig = ANDE_CHAIN_CONFIG;
 
   constructor(publicClient: PublicClient, walletClient?: WalletClient) {
     this.publicClient = publicClient;
     this.walletClient = walletClient;
+    
+    // Validate chain ID
+    if (publicClient.chain?.id !== andechainTestnet.id) {
+      console.warn(
+        `Warning: Connected to chain ${publicClient.chain?.id}, expected ${andechainTestnet.id}`
+      );
+    }
   }
 
   // ==========================================

@@ -26,30 +26,46 @@ const getEnv = () => {
   return 'development';
 };
 
-// Get RPC HTTP URL based on environment
+// Get RPC HTTP URL based on environment with fallback support
 const getRpcHttp = () => {
   const env = getEnv();
   
-  // If we have explicit RPC endpoint, always use it (takes priority)
-  if (process.env.NEXT_PUBLIC_RPC_HTTP && process.env.NEXT_PUBLIC_RPC_HTTP !== 'http://localhost:8545') {
-    return process.env.NEXT_PUBLIC_RPC_HTTP;
-  }
-  
-  // Production defaults to AndeChain server (HTTPS required for production)
+  // Production: use environment variables with fallback chain
   if (env === 'production') {
-    return process.env.NEXT_PUBLIC_RPC_HTTP || 'https://rpc.ande.network';
+    const primary = process.env.NEXT_PUBLIC_RPC_HTTP || 'https://rpc.ande.network';
+    const fallback = process.env.NEXT_PUBLIC_RPC_HTTP_FALLBACK || 'http://189.28.81.202:8545';
+    // Return primary, but store fallback for error handling
+    return primary;
   }
   
   // Development: use local RPC endpoint
   return process.env.NEXT_PUBLIC_LOCAL_RPC_HTTP || 'http://localhost:8545';
 };
 
-// Get RPC WebSocket URL based on environment
+// Get RPC fallback URL (used if primary fails)
+const getRpcHttpFallback = () => {
+  const env = getEnv();
+  if (env === 'production') {
+    return process.env.NEXT_PUBLIC_RPC_HTTP_FALLBACK || 'http://189.28.81.202:8545';
+  }
+  return process.env.NEXT_PUBLIC_LOCAL_RPC_HTTP || 'http://localhost:8545';
+};
+
+// Get RPC WebSocket URL based on environment with fallback
 const getRpcWs = () => {
   const env = getEnv();
   // WebSocket always uses the environment variable or default (WSS required for production)
   if (env === 'production') {
     return process.env.NEXT_PUBLIC_RPC_WS || 'wss://ws.ande.network';
+  }
+  return process.env.NEXT_PUBLIC_LOCAL_RPC_WS || 'ws://localhost:8546';
+};
+
+// Get RPC WebSocket fallback URL
+const getRpcWsFallback = () => {
+  const env = getEnv();
+  if (env === 'production') {
+    return process.env.NEXT_PUBLIC_RPC_WS_FALLBACK || 'ws://189.28.81.202:8546';
   }
   return process.env.NEXT_PUBLIC_LOCAL_RPC_WS || 'ws://localhost:8546';
 };
@@ -60,10 +76,6 @@ const getExplorerUrl = () => {
   if (env === 'production') {
     return process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://explorer.ande.network';
   }
-  if (typeof window !== 'undefined') {
-    // Try to detect if Blockscout is running on port 4000
-    return 'http://localhost:4000';
-  }
   return process.env.NEXT_PUBLIC_EXPLORER_URL || 'http://localhost:4000';
 };
 
@@ -72,6 +84,38 @@ const getChainId = (): number => {
   const chainId = process.env.NEXT_PUBLIC_CHAIN_ID;
   return chainId ? parseInt(chainId, 10) : 6174;
 };
+
+/**
+ * AndeChain Testnet (Chain ID: 6174)
+ * Sovereign Rollup with Celestia DA (Mocha-4)
+ * Production environment configuration
+ */
+export const andechainTestnet = defineChain({
+  id: 6174,
+  name: 'AndeChain Testnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'ANDE',
+    symbol: 'ANDE',
+  },
+  rpcUrls: {
+    default: { 
+      http: [getRpcHttp()],
+      webSocket: [getRpcWs()],
+    },
+    public: { 
+      http: [getRpcHttp()],
+      webSocket: [getRpcWs()],
+    },
+  },
+  blockExplorers: {
+    default: { 
+      name: 'Blockscout', 
+      url: getExplorerUrl(),
+    },
+  },
+  testnet: true,
+});
 
 /**
  * AndeChain Local Development Chain
@@ -86,17 +130,17 @@ export const andechainLocal = defineChain({
     symbol: 'ANDE',
   },
   rpcUrls: {
-    default: { http: ['http://localhost:8545'] },
-    public: { http: ['http://localhost:8545'] },
+    default: { http: ['http://localhost:8545'], webSocket: ['ws://localhost:8546'] },
+    public: { http: ['http://localhost:8545'], webSocket: ['ws://localhost:8546'] },
   },
   blockExplorers: {
     default: { 
       name: 'Blockscout', 
-      url: getExplorerUrl(),
+      url: 'http://localhost:4000',
     },
   },
   testnet: true,
-})
+});
 
 /**
  * AndeChain Production Testnet
