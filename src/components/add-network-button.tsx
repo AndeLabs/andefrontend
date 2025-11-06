@@ -29,10 +29,12 @@ const ANDECHAIN_NETWORKS: Record<string, NetworkConfig> = {
       symbol: 'ANDE',
       decimals: 18,
     },
-    // HTTPS URLs for MetaMask (required for production)
+    // IMPORTANT: MetaMask requires HTTPS URLs for production
+    // Only HTTPS is allowed - HTTP is rejected by MetaMask in browser context
     rpcUrls: [
       'https://rpc.ande.network',
-      'http://189.28.81.202:8545' // Fallback (if needed in test environment)
+      // NOTE: No HTTP fallback here - MetaMask rejects mixed HTTP/HTTPS
+      // The server MUST have SSL/TLS configured for this to work
     ],
     blockExplorerUrls: ['https://explorer.ande.network'],
   },
